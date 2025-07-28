@@ -4,6 +4,7 @@ import mongoose , {Schema,Document} from "mongoose";
     text: string;
     checked: boolean;
     tooltip?: string;
+    note?: string;
  }
 
 
@@ -13,10 +14,9 @@ import mongoose , {Schema,Document} from "mongoose";
  }
 
  export interface Checklist extends Document {
-    userId?: mongoose.Types.ObjectId;
+    userId: mongoose.Types.ObjectId;
     scope: string;
     categories: ChecklistCategory[];
-    notes?: string;
  }
 
  const ChecklistItemSchema = new mongoose.Schema<ChecklistItem>({
@@ -32,6 +32,10 @@ import mongoose , {Schema,Document} from "mongoose";
         type: String,
         default: null
     },
+    note:{
+        type: String,
+        default: ""
+    }
  });
 
  const ChecklistCategorySchema = new mongoose.Schema<ChecklistCategory>({
@@ -49,7 +53,7 @@ import mongoose , {Schema,Document} from "mongoose";
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        default: null
+        required: true,
     },
     scope: {
         type: String,
@@ -59,10 +63,6 @@ import mongoose , {Schema,Document} from "mongoose";
         type: [ChecklistCategorySchema],
         default:[]
     },
-    notes: {
-        type: String,
-        default: ''
-    }
  })
 
  const ChecklistModel =

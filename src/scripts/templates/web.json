@@ -1,0 +1,566 @@
+{
+  "scope": "Web",
+  "categories": [
+    {
+      "name": "Pre-Hunt Preparation",
+      "items": [
+        { "text": "Target Selection & Scope Definition", "tooltip": "Choose targets with clear scope, high signal, and fair rewards." },
+        { "text": "Read Program Policy", "tooltip": "Understand rules, scope, and acceptable vulnerabilities." },
+        { "text": "Note Testing Restrictions", "tooltip": "Be aware of DoS rules, rate limits, or specific functionality restrictions." },
+        { "text": "Understand Reward Criteria", "tooltip": "Note payout tiers, accepted bugs, and duplicates policy." },
+        { "text": "Set Up Testing Environment", "tooltip": "Use clean VM, configure Burp/ZAP, install necessary recon tools." },
+        { "text": "Initial Target Mapping", "tooltip": "Document all primary domains, known IPs, and DNS records." },
+        { "text": "Toolchain Validation", "tooltip": "Ensure all tools are updated and configured properly for scanning and testing." },
+        { "text": "Create Project Workspace", "tooltip": "Organize recon, exploits, reports, and logs per target." },
+        { "text": "Notes on fuzzing strategy (ffuf, wfuzz)", "tooltip": "Plan and automate path/parameter fuzzing for deeper coverage." }
+      ]
+    },
+    {
+      "name": "Passive Reconnaissance",
+      "items": [
+        { "text": "Wildcard Domain Reconnaissance", "tooltip": "Identify wildcard DNS records and enumerate subdomains." },
+        { "text": "Subdomain Enumeration & Bruteforcing", "tooltip": "Discover subdomains using Amass, Subfinder, Assetfinder, DNSGen, MassDNS, Sublist3r, Knockpy, OneForAll." },
+        { "text": "Subdomain Takeover Testing", "tooltip": "Check for dangling CNAMEs and unclaimed cloud buckets." },
+        { "text": "ASN & IP Space Enumeration", "tooltip": "Map related IP ranges using ASN info, Whois, BGP.he.net, Hurricane Electric." },
+        { "text": "Reverse DNS Lookups", "tooltip": "Identify domains hosted on the same IP." },
+        { "text": "DNS & WHOIS Lookups", "tooltip": "Enumerate all DNS records (A, AAAA, CNAME, MX, TXT, SRV, NS) and historical WHOIS." },
+        { "text": "Certificate Transparency Logs", "tooltip": "Find new subdomains and certificates using crt.sh, CertSpotter, Facebook CT." },
+        { "text": "Check Archive.org & Common Crawl", "tooltip": "Find historical endpoints and files using Wayback Machine, Common Crawl, Archive.ph." },
+        { "text": "Google Dorking & Search Engine Discovery", "tooltip": "Use advanced queries to find exposed files, endpoints, and sensitive data." },
+        { "text": "Manual OSINT Gathering", "tooltip": "Collect intelligence from Shodan, Censys, Pastebin, GreyNoise, RiskIQ, FOFA, BinaryEdge, social media, blogs, presentations, job postings." },
+        { "text": "GitHub & Code Repo Recon", "tooltip": "Search for secrets and endpoints in GitHub, GitLab, TruffleHog, GitLeaks, GitRob." },
+        { "text": "Leaked Credentials Search", "tooltip": "Find leaked credentials using HaveIBeenPwned, Dehashed, Leak-Lookup, Pastebin, dark web." },
+        { "text": "Check DNS Zone Transfer (AXFR)", "tooltip": "Attempt AXFR to discover full domain structure (rare but valuable)." },
+        { "text": "Check for Wildcard Subdomains", "tooltip": "Detect wildcard DNS entries." },
+        { "text": "Check for Temporary & Backup Files", "tooltip": "Look for .bak, .old, index~1.html, .swp, .zip, .tar.gz, .sql, .env, .DS_Store, .well-known/security.txt." },
+        { "text": "Screenshots of Web Assets", "tooltip": "Capture screenshots using Aquatone, EyeWitness, Gowitness." },
+        { "text": "CDN & WAF Fingerprinting", "tooltip": "Detect CDN/WAF using WhatWaf, wafw00f, origin IP leaks, CDN misconfigs." },
+        { "text": "Public Documents & Security Forums", "tooltip": "Search for PDFs, DOCs, PPTs, and monitor forums/paste sites for leaks." },
+        { "text": "External Resource Enumeration", "tooltip": "Check for CDNs, APIs, Firebase, Shopify, Google APIs, third-party services." },
+        { "text": "Mobile/SPA/Frontend API Enumeration", "tooltip": "Find API endpoints for mobile/web apps using burp, logs, or manual review." },
+        { "text": "CORS & CSP Policies Review", "tooltip": "Review headers for Access-Control misconfigurations and unsafe policies." },
+        { "text": "Public API Docs & App Store Listings", "tooltip": "Look for Swagger, OpenAPI, Postman collections, and analyze app store listings." },
+        { "text": "Error Messages & Stack Traces", "tooltip": "Trigger errors to reveal stack traces, internal paths, or debug info." },
+        { "text": "Open Redirects & Cookie/Session Management", "tooltip": "Identify open redirects and analyze cookies for security flags and session exposure." },
+        { "text": "Check for Exposed Internal IPs/Hostnames", "tooltip": "Look for internal IPs/hostnames in responses, JS, or error messages." },
+        { "text": "Subsidiary/Acquisition Enumeration", "tooltip": "Identify related companies and assets via OSINT." },
+        { "text": "Look for .git/config leaks", "tooltip": ".git exposures are frequent and critical for source code leaks." }
+      ]
+    },
+    {
+      "name": "Active Reconnaissance",
+      "items": [
+        { "text": "Port Scanning & Service Detection", "tooltip": "Perform comprehensive Nmap/masscan scans (TCP/UDP, service/version/OS detection)." },
+        { "text": "Service Version Identification", "tooltip": "Identify versions of running services." },
+        { "text": "Default Credential Testing", "tooltip": "Test for default credentials on exposed services." },
+        { "text": "Directory/File Brute Forcing", "tooltip": "Use Gobuster, Dirb, Dirsearch, ffuf, Feroxbuster for brute-forcing directories and files." },
+        { "text": "Technology Stack Identification", "tooltip": "Detect server/client technologies using Wappalyzer, BuiltWith, WhatWeb." },
+        { "text": "CMS Detection & Version Identification", "tooltip": "Identify CMS and its version." },
+        { "text": "Check for Common & Sensitive Files", "tooltip": "Look for robots.txt, sitemap.xml, .well-known/, .DS_Store, .git, .env, backup files." },
+        { "text": "Backup File Discovery", "tooltip": "Find backup files (.bak, .old, .tmp, ~, .zip, .tar.gz, .sql)." },
+        { "text": "Virtual Host Discovery", "tooltip": "Detect hidden virtual hosts using ffuf, gobuster vhost, VHostScan." },
+        { "text": "Template-Based Scanning", "tooltip": "Scan for known vulnerabilities using Nuclei." },
+        { "text": "WebSocket & GraphQL Endpoint Discovery", "tooltip": "Identify /graphql, /api/graphql, and WebSocket endpoints." },
+        { "text": "Reverse Proxy/Load Balancer Issues", "tooltip": "Test for misconfigurations in Nginx, Apache, etc." },
+        { "text": "Detect SSRF with Burp Collaborator or interactsh", "tooltip": "Test for server-side request forgery using external interaction tools." },
+        { "text": "Parameter discovery (Arjun, ParamSpider)", "tooltip": "Find hidden GET/POST/JSON parameters for deeper testing." },
+        { "text": "HTTP method testing", "tooltip": "Test for PUT, DELETE, OPTIONS, and other HTTP methods." }
+      ]
+    },
+    {
+      "name": "Application Mapping",
+      "items": [
+        { "text": "Manual Exploration", "tooltip": "Browse the application manually and map all functionality, user roles, entry points, and parameters." },
+        { "text": "Note File Upload Functionalities", "tooltip": "Identify and document file upload features." },
+        { "text": "Document API Endpoints", "tooltip": "Map all API endpoints for further testing." },
+        { "text": "Identify Client-side Code & Technologies", "tooltip": "Detect client-side frameworks and libraries." },
+        { "text": "Check for Multiple Versions/Channels", "tooltip": "Identify web, mobile web, mobile app, web services, etc." },
+        { "text": "Identify Co-hosted & Related Applications", "tooltip": "Find related apps hosted on the same infrastructure." },
+        { "text": "Document All Hostnames & Ports", "tooltip": "List all discovered hostnames and open ports." },
+        { "text": "Identify Third-party Hosted Content", "tooltip": "Find content hosted by third parties." },
+        { "text": "Look for Debug Parameters", "tooltip": "Identify debug or test parameters in the application." },
+        { "text": "Review mobile app (APK decompile)", "tooltip": "Decompile APKs to find hidden endpoints and secrets." },
+        { "text": "Identify feature flags or debug headers", "tooltip": "Look for dev/test artifacts that may expose hidden features." },
+        { "text": "Session handling & role testing strategy", "tooltip": "Plan for privilege escalation and session management testing." }
+      ]
+    },
+    {
+      "name": "Automated Spidering & Content Discovery",
+      "items": [
+        { "text": "Burp Suite Spider/Crawler", "tooltip": "Automate endpoint discovery with Burp Suite." },
+        { "text": "OWASP ZAP Automated Scan", "tooltip": "Use ZAP for automated crawling and mapping." },
+        { "text": "Custom Crawler Scripts", "tooltip": "Run custom scripts for crawling and endpoint discovery." },
+        { "text": "JavaScript Analysis for Hidden Endpoints", "tooltip": "Analyze JS files for hidden endpoints using JSParser, LinkFinder, SecretFinder, JSScan." },
+        { "text": "Check Caches of Major Search Engines", "tooltip": "Find publicly accessible sites via search engine caches." },
+        { "text": "Test for Differences in Content Based on User Agent", "tooltip": "Check for mobile site or crawler-specific content." },
+        { "text": "Comprehensive Web Application Fingerprinting", "tooltip": "Fingerprint the application for technologies and versions (Wappalyzer, WhatWeb, BuiltWith)." },
+        { "text": "Wayback/Archive Discovery", "tooltip": "Discover old endpoints using Gau, Waybackurls, hakrawler, Archive.ph." },
+        { "text": "Crawling via tools like hakrawler, katana", "tooltip": "Use lightweight crawlers for fast endpoint discovery." }
+      ]
+    },
+    {
+      "name": "Additional Recon & Intelligence",
+      "items": [
+        { "text": "Monitor & Analyze JS Files", "tooltip": "Extract endpoints, secrets, and keys from JavaScript using LinkFinder, SecretFinder, JSScan." },
+        { "text": "Check Robots.txt & Sitemap.xml", "tooltip": "Find disallowed paths and indexed endpoints." },
+        { "text": "Enumerate External Resources", "tooltip": "Check 3rd party services, CDNs, APIs used by the application." },
+        { "text": "Identify Virtual Hosts", "tooltip": "Detect hidden virtual hosts using ffuf or vhost scan." },
+        { "text": "Shodan/Censys Enumeration", "tooltip": "Identify exposed services, ports, banners on Internet-facing hosts." },
+        { "text": "Third-party Enumeration", "tooltip": "Enumerate linked services like Firebase, Shopify, Google APIs, etc." },
+        { "text": "Correlate DNS & ASN Info", "tooltip": "Group subdomains by IP/ASN to find organization-wide assets." },
+        { "text": "Identify Mobile/SPA/Frontend API", "tooltip": "Find API endpoints for mobile/web apps using burp or logs." },
+        { "text": "Check Public Code Repositories", "tooltip": "Search GitHub/GitLab for company leaks or hardcoded secrets." },
+        { "text": "Hunt for Leaked Credentials", "tooltip": "Use Leak-Lookup, HaveIBeenPwned, Dehashed." },
+        { "text": "Search Pastebin Dumps", "tooltip": "Find pastes containing sensitive information or credentials." },
+        { "text": "Threat Intelligence Platforms", "tooltip": "Use GreyNoise, RiskIQ, FOFA, BinaryEdge to assess asset exposure." },
+        { "text": "DNS Zone Transfer Test", "tooltip": "Attempt AXFR to discover full domain structure (rare but valuable)." },
+        { "text": "Check for Temporary Files", "tooltip": "Look for files like .bak, .old, index~1.html, which may leak info." },
+        { "text": "Capture Screenshots of Web Assets", "tooltip": "Use Aquatone, EyeWitness to capture target screenshots." },
+        { "text": "Fingerprint CDN & WAF", "tooltip": "Identify if a WAF or CDN is used (e.g., Cloudflare, Akamai, etc.)" },
+        { "text": "Gather Social Media Footprint", "tooltip": "Find employee or company details that may reveal internal assets." },
+        { "text": "Review Publicly Available Documents", "tooltip": "Search for PDFs, DOCs that may contain sensitive information." },
+        { "text": "Monitor Security Forums", "tooltip": "Check forums for discussions or leaks related to the target." },
+        { "text": "Find Archived URLs", "tooltip": "Use Wayback Machine, Common Crawl, and Archive.ph to view old endpoints." },
+        { "text": "Check CORS & CSP Policies", "tooltip": "Review headers for Access-Control misconfigurations and unsafe policies." },
+        { "text": "Fingerprint Hosting Stack & CDN", "tooltip": "Detect hosting technologies and WAF/CDN fingerprinting with Wappalyzer or similar tools." },
+        { "text": "Check for Publicly Indexed API Documentation", "tooltip": "Look for Swagger, OpenAPI, Postman collections exposed online." },
+        { "text": "Review Mobile App Store Listings", "tooltip": "Analyze app descriptions, screenshots, and changelogs for endpoints or features." },
+        { "text": "Analyze Certificate Transparency Logs", "tooltip": "Find newly issued certificates and potential new subdomains." },
+        { "text": "Check for Exposed Environment Files", "tooltip": "Look for .env, config.json, and other config files in web roots." },
+        { "text": "Review Error Messages & Stack Traces", "tooltip": "Trigger errors to reveal stack traces, internal paths, or debug info." },
+        { "text": "Look for Publicly Accessible Backup Files", "tooltip": "Search for .zip, .tar.gz, .bak, .sql files in web directories." },
+        { "text": "Check for Open Redirects", "tooltip": "Identify endpoints vulnerable to open redirection." },
+        { "text": "Review Cookie & Session Management", "tooltip": "Analyze cookies for security flags, session tokens, and exposure." },
+        { "text": "Check for Exposed Internal IPs or Hostnames", "tooltip": "Look for internal IPs/hostnames in responses, JS, or error messages." },
+        { "text": "JARM or JA3 fingerprinting", "tooltip": "Use TLS fingerprinting to correlate backend infrastructure." },
+        { "text": "Correlation of Cloud Provider Usage", "tooltip": "Identify S3, Azure Blob, GCP Buckets via tools like cloud_enum." },
+        { "text": "Passive DNS correlation", "tooltip": "Use SecurityTrails, PassiveTotal to see asset reuse across domains." },
+        { "text": "Use Burp Extensions (Reflector, Param Miner, Authorizer, Turbo Intruder)", "tooltip": "Enhance recon and testing with advanced Burp Suite extensions." },
+        { "text": "Tracking HTTP Response Codes", "tooltip": "Monitor 2xx, 3xx, 4xx codes during brute-forcing for better analysis." }
+      ]
+    },
+    {
+    "name": "Registration & Account Creation",
+    "items": [
+      { "text": "Duplicate registration/overwrite existing user" },
+      { "text": "Weak password policies" },
+      { "text": "Username reuse" },
+      { "text": "Insufficient email verification" },
+      { "text": "Disposable email addresses allowed" },
+      { "text": "Registration over HTTP" },
+      { "text": "Overwrite default web pages via crafted usernames" },
+      { "text": "Folder enumeration and overwrite via registration" },
+      { "text": "Rate-limiting on registration" },
+      { "text": "Weak CAPTCHA" },
+      { "text": "Username enumeration via registration" },
+      { "text": "Special character/Unicode handling (potential XSS)" }
+    ]
+  },
+  {
+    "name": "Authentication",
+    "items": [
+      { "text": "Username enumeration (error messages, timing)" },
+      { "text": "Authentication bypass (SQLi, SSO, HTTP/HTTPS)" },
+      { "text": "Password management (confirmation, weak login, HTTP/HTTPS)" },
+      { "text": "Account lockout/brute-force protection" },
+      { "text": "Rate-limiting bypass (user agent, null bytes, IP rotation)" },
+      { "text": "OAuth: roles, parameters, code flaws, redirect_uri, state flaws" },
+      { "text": "2FA misconfigurations (code leakage, reusability, brute-force, integrity)" },
+      { "text": "Pre-ATO (social signup, missing email validation)" },
+      { "text": "Response manipulation (status code, 2FA code)" },
+      { "text": "Session invalidation (email/password/2FA change)" },
+      { "text": "OAuth misuse (scope escalation)" },
+      { "text": "JWT: replay, weak secret, none alg, kid injection" },
+      { "text": "Weak 2FA (reusable OTPs)" },
+      { "text": "Password reset token predictability/leakage" },
+      { "text": "Session hijacking via weak reset" },
+      { "text": "API endpoint auth bypass" },
+      { "text": "SSO consistency" }
+    ]
+  },
+  {
+    "name": "Session Management",
+    "items": [
+      { "text": "Identify session cookie among many" },
+      { "text": "Decode cookies (Base64, hex, URL)" },
+      { "text": "Modify session token values (bit/byte)" },
+      { "text": "Session handling with similar usernames" },
+      { "text": "Session cookie expiration/domain scope" },
+      { "text": "HttpOnly, Secure, SameSite flags" },
+      { "text": "Session fixation (pre/post-auth)" },
+      { "text": "Replay session cookies (different IPs/systems)" },
+      { "text": "Concurrent logins" },
+      { "text": "Tamper user info in cookies" },
+      { "text": "Session invalidation (logout, email/2FA change)" },
+      { "text": "Session over HTTP" },
+      { "text": "Token predictability" },
+      { "text": "Token binding issues (MitM)" },
+      { "text": "Session puzzling (mixing auth methods)" },
+      { "text": "Session termination on role/sensitive actions" }
+    ]
+  },
+  {
+    "name": "Authorization & Access Control",
+    "items": [
+      { "text": "IDOR (account takeover, PII, admin)" },
+      { "text": "Forced browsing (direct URL access)" },
+      { "text": "Horizontal/vertical privilege escalation" },
+      { "text": "Role manipulation (user→admin, role switching)" },
+      { "text": "Missing re-authentication for sensitive actions" },
+      { "text": "Password reset token IDOR" },
+      { "text": "Role bypass" },
+      { "text": "Broken access control rules" },
+      { "text": "Function-level authorization" },
+      { "text": "Parameter tampering (role/data)" },
+      { "text": "GraphQL-based IDOR (nodeId, userId)" },
+      { "text": "Insecure API updates (PUT/PATCH)" },
+      { "text": "WebSocket access control" },
+      { "text": "NoSQL direct updates" }
+    ]
+  },
+  {
+    "name": "Input Validation & Injection",
+    "items": [
+      { "text": "SQL Injection (classic, blind, time-based, error-based, union, encoding, logic, SQLmap, WAF bypass, time/conditional delays)" },
+      { "text": "Authentication vulnerabilities (logic flaws, bypass, brute-force, weak password reset, multi-factor bypass)" },
+      { "text": "Path Traversal (directory traversal, file inclusion, remote shells)" },
+      { "text": "Command Injection (ping, whoami, chaining, blind, out-of-band, CSV/Excel macro)" },
+      { "text": "Business Logic Vulnerabilities (workflow abuse, logic bypass, privilege escalation, race conditions)" },
+      { "text": "Information Disclosure (error messages, stack traces, debug info, sensitive data in responses)" },
+      { "text": "Access Control (IDOR, privilege escalation, function-level, vertical/horizontal, role manipulation)" },
+      { "text": "File Upload Vulnerabilities (null byte, double extension, magic byte, overwrite, path traversal, SVG/HTML XSS, DoS, metadata, blacklist bypass, RCE via media, ghost files, public storage)" },
+      { "text": "Race Conditions (multi-purchase, double-submit, concurrent requests, double-spending, bypassing business logic checks)" },
+      { "text": "SSRF (common params, bypasses: HTTPS, decimal IP, IPv6, domain redirection, malformed URLs)" },
+      { "text": "XXE Injection (blind, out-of-band, file retrieval, SSRF)" },
+      { "text": "NoSQL Injection (MongoDB, CouchDB, injection in queries)" },
+      { "text": "API Testing (BOLA, BFLA, excessive data, mass assignment, rate-limiting, introspection, batch query abuse, custom scalar validation, inconsistent auth, undocumented methods, key leakage, CSRF/token issues)" },
+      { "text": "Web Cache Deception (fake static extensions, cache poisoning, CPDoS, unkeyed header abuse, HTTP request smuggling, cache-based DoS)" },
+      { "text": "Client-Side Topics (DOM XSS, DOM clobbering, prototype pollution, JS source code leakage, sourcemaps, clickjacking, HTML5 abuse, postMessage, storage SQLi, CORS, offline app, XSS filter evasion, mutation XSS, unsafe postMessage, WebAssembly abuse, timing attacks, client-side CSRF, insecure storage, path traversal in SPAs)" },
+      { "text": "Insecure Deserialization (PHP, Java, Python, .NET, logic flaws, gadget chains, insecure deserialization in all platforms)" },
+      { "text": "Web LLM Attacks (prompt injection, key leaks, SSRF/data injection, model inversion, data/model poisoning, over-reliance on AI, exposed endpoints, rate-limit bypass)" },
+      { "text": "GraphQL API Vulnerabilities (query abuse, introspection, batch query, custom scalar, BOLA, BFLA, excessive data, mass assignment)" },
+      { "text": "Server-Side Template Injection (Flask/Jinja2, Django, Angular, React, logic flaws, code execution)" },
+      { "text": "Web Cache Poisoning (headers, CPDoS, cache-based DoS, HTTP request smuggling)" },
+      { "text": "HTTP Host Header Attacks (password reset poisoning, ambiguous requests, duplicate headers, absolute URL, line wrapping, host override headers)" },
+      { "text": "HTTP Request Smuggling (CL.TE, TE.CL, malformed headers, cache poisoning, DoS)" },
+      { "text": "OAuth Authentication (redirect flaws, open redirect, code flaws, scope escalation, state flaws, token theft, SSO consistency)" },
+      { "text": "JWT Attacks (weak secret, none alg, kid injection, replay, brute-force, JWK embedding, insecure storage)" },
+      { "text": "Prototype Pollution (JS prototype pollution)" },
+      { "text": "HTML/Attribute Injection" },
+      { "text": "CRLF Injection (log poisoning, redirects)" },
+      { "text": "SSTI (Flask/Jinja2, Django, Angular, React)" },
+      { "text": "JSONP/JSON Hijacking" },
+      { "text": "HTTP Parameter Pollution (HPP)" },
+      { "text": "Deserialization (PHP, Java, Python, insecure deserialization)" },
+      { "text": "WebSocket Message Injection (manipulation, token reuse, CSRF, MITM)" },
+      { "text": "CORS Misconfig (wildcard, null origin, internal APIs, parsing errors)" },
+      { "text": "Open Redirects (common params, whitelist bypass, encoding, null bytes)" },
+      { "text": "WAF Bypass (null bytes, encoding, rare chars)" },
+      { "text": "Log Injection (poison logs for LFI/code exec)" },
+      { "text": "LDAP Injection" },
+      { "text": "SSI Injection" },
+      { "text": "Log4Shell (JNDI)" },
+      { "text": "XPath/XQuery/IMAP/SMTP Injection" },
+      { "text": "Input validation in file uploads/forms" }
+    ]
+  },
+  {
+    "name": "Business Logic",
+    "items": [
+      { "text": "Coupon/voucher reuse/abuse" },
+      { "text": "Price/product ID tampering" },
+      { "text": "Race conditions (multi-purchase, double-submit, concurrent requests, double-spending, bypassing business logic checks)" },
+      { "text": "Payment method manipulation (COD bypass)" },
+      { "text": "Checkout without payment" },
+      { "text": "Reward points abuse" },
+      { "text": "Wishlist/cart hijack" },
+      { "text": "Gift card cloning" },
+      { "text": "Order manipulation (track/cancel/modify others)" },
+      { "text": "Out-of-stock ordering" },
+      { "text": "Banking app logic flaws" },
+      { "text": "Confused deputy problem" },
+      { "text": "API billing abuse" },
+      { "text": "Anti-automation/rate-limit bypass" },
+      { "text": "User balance/limit checks" },
+      { "text": "Order status/invoice tampering" },
+      { "text": "Loyalty/referral logic flaws" }
+    ]
+  },
+  {
+    "name": "API & WebSocket",
+    "items": [
+      { "text": "REST/GraphQL enumeration (Arjun, ParamSpider, manual)" },
+      { "text": "BOLA/BFLA (object/function-level auth)" },
+      { "text": "Excessive data exposure" },
+      { "text": "Mass assignment (role=admin, is_admin=true)" },
+      { "text": "Rate-limiting/DoS checks" },
+      { "text": "GraphQL introspection abuse, batch query abuse, custom scalar validation" },
+      { "text": "Inconsistent authorization" },
+      { "text": "WebSocket manipulation, CSRF, MITM, token validation" },
+      { "text": "Swagger/OpenAPI docs exposure" },
+      { "text": "Undocumented HTTP methods (PUT, DELETE, TRACE, PATCH)" },
+      { "text": "API key leakage" },
+      { "text": "WebSocket CSRF/token issues" }
+    ]
+  },
+  {
+    "name": "File Upload & Storage",
+    "items": [
+      { "text": "Null byte bypass (%00)" },
+      { "text": "Double extension (.php.jpg)" },
+      { "text": "Magic byte/content-type spoof" },
+      { "text": "File overwrite (system files)" },
+      { "text": "Path traversal (../../)" },
+      { "text": "ImageMagick/ImageTragick/EXIF" },
+      { "text": "Client-side validation bypass" },
+      { "text": "Stored XSS (SVG, HTML, images)" },
+      { "text": ".htaccess upload → RCE" },
+      { "text": "Large file DoS (2GB+)" },
+      { "text": "Metadata leakage (EXIF)" },
+      { "text": "Pixel flood attack" },
+      { "text": "Blacklist bypass (homograph, case, alternate ext)" },
+      { "text": "RCE via media processing (FFmpeg)" },
+      { "text": "SVG filters/animation XSS/DoS" },
+      { "text": "Ghost file attacks (empty, upload/delete race)" },
+      { "text": "File type mismatch" },
+      { "text": "File upload rate-limiting" },
+      { "text": "Publicly accessible storage" }
+    ]
+  },
+  {
+    "name": "Infrastructure & Misconfiguration",
+    "items": [
+      { "text": "Missing HTTP security headers (CSP, HSTS, X-Frame-Options, X-XSS, Referrer, Permissions)" },
+      { "text": "Verb tampering (TRACE, OPTIONS, PUT, DELETE)" },
+      { "text": "Directory listing enabled" },
+      { "text": "Exposed sensitive files (.git, .env, .bak, .swp, debug panels)" },
+      { "text": "Debug panels/logs" },
+      { "text": "Hidden parameters (debug=true)" },
+      { "text": "CSP bypass (unsafe-inline/eval, missing nonce)" },
+      { "text": "Exposed logs/backups" },
+      { "text": "DoS vectors (xmlrpc.php, load-styles.php, load-scripts.php)" },
+      { "text": "Verbose error messages" },
+      { "text": "Information disclosure (usernames, backups, server details)" },
+      { "text": "Internal IP disclosure" },
+      { "text": "Security.txt presence" },
+      { "text": "Misconfigured CSP" },
+      { "text": "Exposed server status pages" },
+      { "text": "Reverse proxy/load balancer misconfig" },
+      { "text": "SSL/TLS config (weak ciphers, outdated protocols)" }
+    ]
+  },
+  {
+    "name": "CORS & Cross-Origin",
+    "items": [
+      { "text": "Wildcard origin + credentials" },
+      { "text": "Null origin accepted" },
+      { "text": "Reflection-based origin" },
+      { "text": "CORS on private/internal APIs" },
+      { "text": "Access-Control-Allow-Origin: * + credentials: true" },
+      { "text": "CORS with internal services" },
+      { "text": "Errors parsing origin headers" },
+      { "text": "Whitelisted null origin value" },
+      { "text": "CORS bypass via malformed headers/origins" }
+    ]
+  },
+  {
+    "name": "CSRF",
+    "items": [
+      { "text": "Missing/reusable/predictable CSRF tokens" },
+      { "text": "Missing re-auth on sensitive actions" },
+      { "text": "CSRF + CORS combo" },
+      { "text": "CSRF via hidden forms/stateless APIs" },
+      { "text": "Token validation by method" },
+      { "text": "Token binding to session" },
+      { "text": "CSRF on sensitive ops (email/password change)" },
+      { "text": "CSRF token tied to non-session cookie" },
+      { "text": "Referer header validation issues" }
+    ]
+  },
+  {
+    "name": "Client-Side",
+    "items": [
+      { "text": "DOM XSS" },
+      { "text": "DOM clobbering" },
+      { "text": "JS prototype pollution" },
+      { "text": "JS source code leakage" },
+      { "text": "Exposed sourcemaps/debug code" },
+      { "text": "Clickjacking (iframe, opacity, hidden)" },
+      { "text": "HTML5 features abuse (Web Workers, postMessage, web storage SQLi, CORS, offline app)" },
+      { "text": "JS source code analysis" },
+      { "text": "Source maps exposure" },
+      { "text": "XSS filter evasion (encoding, polyglots, tag attributes)" },
+      { "text": "Social media sharing buttons" },
+      { "text": "Mutation XSS" },
+      { "text": "Unsafe postMessage" },
+      { "text": "WebAssembly abuse (memory probing, function mapping leaks)" },
+      { "text": "Timing attacks (WebGL, GPU cache, CSS)" },
+      { "text": "Client-side CSRF in APIs" },
+      { "text": "Insecure localStorage/sessionStorage" },
+      { "text": "Client-side path traversal in SPAs" }
+    ]
+  },
+  {
+    "name": "Cache & CDN",
+    "items": [
+      { "text": "Web cache deception (fake static extensions)" },
+      { "text": "Cache poisoning (headers, CPDoS)" },
+      { "text": "HTTP request smuggling (CL.TE, TE.CL, malformed headers)" },
+      { "text": "Unkeyed header abuse (X-Forwarded-For)" },
+      { "text": "Cache-based DoS (flooding cache, invalid entries)" },
+      { "text": "Web cache poisoning" }
+    ]
+  },
+  {
+    "name": "Cryptography",
+    "items": [
+      { "text": "Weak cipher use (MD5, SHA1, RC4, DES)" },
+      { "text": "Hardcoded keys (JS, GitHub, code)" },
+      { "text": "JWT handling (weak secret, none alg, kid injection, JWK embedding)" },
+      { "text": "Improper TLS config (version, ciphers, certs)" },
+      { "text": "Secret leakage (logs, responses, errors)" },
+      { "text": "Brute-forcing JWT secrets" },
+      { "text": "Insecure randomness (tokens, session IDs)" },
+      { "text": "ECB mode in AES" },
+      { "text": "Improper key management (rotation, storage)" },
+      { "text": "Padding oracle attacks" },
+      { "text": "Weak password hashing" },
+      { "text": "Secure random number generation" }
+    ]
+  },
+  {
+    "name": "Cloud & Serverless",
+    "items": [
+      { "text": "Cloud metadata endpoints (AWS, GCP, Azure, DigitalOcean)" },
+      { "text": "SSRF to metadata" },
+      { "text": "S3/GCS bucket access/takeover" },
+      { "text": "Serverless/cloud function abuse (Lambda, IAM roles)" },
+      { "text": "Kubernetes exposure (dashboards, RBAC)" },
+      { "text": "Exposed config files (Terraform, CloudFormation, .env)" },
+      { "text": "AWS credentials via SSRF" },
+      { "text": "GCP/Azure metadata abuse" },
+      { "text": "GitHub Actions/CI/CD secrets" },
+      { "text": "Azure SAS token leaks" },
+      { "text": "Serverless privilege escalation" },
+      { "text": "Misconfigured IAM policies" },
+      { "text": "Exposed cloud storage via CORS" },
+      { "text": "Cloud webhook exposures" }
+    ]
+  },
+  {
+    "name": "Third-Party & Integrations",
+    "items": [
+      { "text": "Payment gateway bypass" },
+      { "text": "OAuth redirect flaws (open redirect → token theft)" },
+      { "text": "SAML attacks (signature wrapping, replay)" },
+      { "text": "Embedded third-party scripts (analytics, CDNs, tracking)" },
+      { "text": "Token recipient confusion" },
+      { "text": "Broken links to trusted domains (OAuth, SAML, scripts)" },
+      { "text": "Legacy analytics endpoints" },
+      { "text": "Third-party API key leakage" },
+      { "text": "Misconfigured webhooks" },
+      { "text": "Embedded chat/support widget vulns" }
+    ]
+  },
+  {
+    "name": "Denial of Service (DoS)",
+    "items": [
+      { "text": "ReDoS (regex)" },
+      { "text": "HTTP/2 request flood" },
+      { "text": "Pixel flood (image upload)" },
+      { "text": "CAPTCHA flood" },
+      { "text": "Payload bombs (zip, CSV, XML)" },
+      { "text": "TTFB exhaustion (SSRF, DB delay)" },
+      { "text": "File upload DoS (large files)" },
+      { "text": "WebSocket bomb (many connections)" },
+      { "text": "Cookie bomb (oversized cookies)" },
+      { "text": "Frame flood (GIFs)" },
+      { "text": "Search/autocomplete abuse" },
+      { "text": "User profile picture upload abuse" },
+      { "text": "WebAssembly memory leaks" },
+      { "text": "GraphQL query DoS" },
+      { "text": "API rate-limit bypass" },
+      { "text": "Resource exhaustion via downloads" }
+    ]
+  },
+  {
+    "name": "Advanced Chains",
+    "items": [
+      { "text": "SSRF → RCE via cloud metadata" },
+      { "text": "Open redirect → OAuth token theft" },
+      { "text": "JWT kid → deserialization" },
+      { "text": "Host header → password reset hijack" },
+      { "text": "CORS + Open API → auth leakage" },
+      { "text": "SSRF → internal admin panel" },
+      { "text": "SSRF → AWS metadata → credential exfiltration" },
+      { "text": "XSS + CSRF → account takeover" },
+      { "text": "SQLi + file upload → RCE" },
+      { "text": "IDOR + business logic flaw → unauthorized transaction" },
+      { "text": "Chaining low-severity issues" }
+    ]
+  },
+  {
+    "name": "AI/ML & LLM Security",
+    "items": [
+      { "text": "Prompt injection (LLM/chatbot)" },
+      { "text": "AI API key leaks (JS, responses)" },
+      { "text": "AI search SSRF/data injection" },
+      { "text": "Data/model poisoning" },
+      { "text": "Model inversion attacks" },
+      { "text": "Over-reliance on AI for auth/validation" },
+      { "text": "Exposed AI endpoints" },
+      { "text": "AI rate-limit bypass" }
+    ]
+  },
+  {
+    "name": "CI/CD & Supply Chain",
+    "items": [
+      { "text": "GitHub Action YAML injection" },
+      { "text": "Exposed config files (.npmrc, .env, package-lock.json, .yml)" },
+      { "text": "GitHub secrets/token scanning" },
+      { "text": "Secrets in logs/CI pipeline" },
+      { "text": "Misconfigured CI/CD permissions" },
+      { "text": "Exposed build artifacts" },
+      { "text": "Dependency confusion attacks" }
+    ]
+  },
+  {
+    "name": "Post-Exploitation & Reporting",
+    "items": [
+      { "text": "Extract sensitive data (PII, tokens, credentials)" },
+      { "text": "Generate PoC (video, curl, Burp)" },
+      { "text": "Clean up test accounts/evidence" },
+      { "text": "Export logs/session/network captures" },
+      { "text": "Write concise, impact-driven reports (description, impact, steps, screenshots, remediation)" },
+      { "text": "Provide remediation guidance" },
+      { "text": "Validate fixes during retesting" },
+      { "text": "Include CVSS/severity assessment" },
+      { "text": "Test for persistence post-fix" }
+    ]
+  },
+  {
+    "name": "Miscellaneous & Special Techniques",
+    "items": [
+      { "text": "GitHub token leak (api_key, secret_key in repos)" },
+      { "text": "Email spoofing (missing SPF, DKIM, DMARC)" },
+      { "text": "DNS rebinding (internal service access)" },
+      { "text": "File overwrite (uploads, misconfig)" },
+      { "text": "APK analysis (MobSF, JADX)" },
+      { "text": "Broken link hijacking" },
+      { "text": "User agent differences (mobile, crawler, null)" },
+      { "text": "Session puzzling (inconsistent session mgmt)" },
+      { "text": "Feature misuse" },
+      { "text": "Card payment testing (vulns, config, injection)" },
+      { "text": "HTML5 testing (web messaging, storage SQLi, CORS, offline)" },
+      { "text": "Cross-site tracing (XST)" },
+      { "text": "File extension handling" },
+      { "text": "Authentication history/session logs" },
+      { "text": "Out-of-channel notifications (SMS, email)" },
+      { "text": "SSO consistency" },
+      { "text": "Insecure WebSocket auth" }
+    ]
+  }
+  ]
+}
+
+
