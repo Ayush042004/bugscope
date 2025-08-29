@@ -2,8 +2,8 @@ import dbConnect from "@/lib/dbConnect";
 import { NextRequest } from "next/server";
 import TemplateModel from "@/model/checklistTemplate";
 
-export async function GET(request:NextRequest, { params }: { params: Promise<{ scope: string }> }){
-    const {scope} =  await params;
+export async function GET(request:NextRequest, { params }: { params: { scope: string } }){
+    const {scope} =  params;
 
   if (!scope || typeof scope !== "string") {
     return Response.json({ success: false, message: "Scope is required as a query parameter" }, { status: 400 });

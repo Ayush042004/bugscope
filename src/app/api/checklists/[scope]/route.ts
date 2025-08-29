@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
    try {
      const checklist = await ChecklistModel.findOne({
     userId,
-    scope: params.scope
+    scope:  params.scope
   });
 
   if (!checklist) return Response.json({  success:false,message:"Error getting checklist" }, { status: 404 });
@@ -31,11 +31,3 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
    }
  
 }
-
-
-
-
-
-
-
-
