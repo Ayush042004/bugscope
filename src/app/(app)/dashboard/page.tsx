@@ -27,7 +27,6 @@ import {
   Bug,
   Lightbulb,
   FileText,
-  User as UserIcon,
   Search,
   Download,
   Sparkles,
@@ -136,7 +135,7 @@ export default function DashboardPage() {
     } finally {
       setLoadingChecklist(false);
     }
-  }, [ROUTES,selectedScope]);
+  }, []);
 
   useEffect(() => {
     if (session?.user) {

@@ -5,7 +5,7 @@ import ChecklistModel from "@/model/Checklists";
 import { NextRequest } from "next/server";
 import { User } from "next-auth";
 
-export async function GET(request: NextRequest, { params }: { params: { scope: string } }) {
+export async function GET(request: NextRequest, context: { params: { scope: string } }) {
   await dbConnect();
   const session = await getServerSession(authOptions);
   const user:User = session?.user as User 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
    try {
      const checklist = await ChecklistModel.findOne({
     userId,
-    scope:  params.scope
+    scope:  context.params.scope
   });
 
   if (!checklist) return Response.json({  success:false,message:"Error getting checklist" }, { status: 404 });
@@ -27,7 +27,10 @@ export async function GET(request: NextRequest, { params }: { params: { scope: s
     
    } catch (error) {
     console.error("Error getting user checlist",error)
-    
+     return Response.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
    }
  
 }
