@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { toast } from 'react-hot-toast';
-import axios, { AxiosError } from 'axios';
-import { ApiResponse } from '@/types/ApiResponse';
+import axios from 'axios';
+
 
 import {
   Shield,
@@ -27,14 +27,11 @@ import {
   Bug,
   Lightbulb,
   FileText,
-  LogOut,
-  Settings,
   User as UserIcon,
   Search,
   Download,
   Sparkles,
   CheckCircle2,
-  Circle,
   TrendingUp,
   Activity,
   Zap,
@@ -48,7 +45,7 @@ import {
   Server,
 } from 'lucide-react';
 
-/* --------------------- ROUTE CONSTANTS (edit if needed) -------------------- */
+
 const ROUTES = {
   CREATE_CHECKLIST: '/api/checklists/create', // POST { scope }
   GET_USER_CHECKLIST: (scope: string) => `/api/checklists/${encodeURIComponent(scope)}`,
@@ -685,14 +682,14 @@ export default function DashboardPage() {
               </Card>
             </motion.div>
 
-            {/* Sidebar - AI Suggestions + Export */}
+          
             <motion.div 
               initial={{ opacity: 0, x: 20 }} 
               animate={{ opacity: 1, x: 0 }} 
               transition={{ delay: 0.5 }}
               className="space-y-6"
             >
-              {/* AI Suggestions */}
+             
               <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 backdrop-blur-lg shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-white">
@@ -765,7 +762,6 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Export Card */}
               <Card className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 backdrop-blur-lg shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-white">

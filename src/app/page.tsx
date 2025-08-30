@@ -13,15 +13,10 @@ import {
   Cloud, 
   Brain, 
   Network,
-  CheckCircle,
   ArrowRight,
   Star,
   Users,
   Target,
-  Zap,
-  Lock,
-  Eye,
-  Search,
   Bug,
   Award,
   TrendingUp,
@@ -82,7 +77,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
     
-      {/* Hero Section */}
+      
       <section className="pt-32 pb-20 px-6">
         <div className="container mx-auto text-center">
           <motion.div
@@ -121,7 +116,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+    
       <section className="py-20 px-6">
         <div className="container mx-auto">
           <motion.div
@@ -170,7 +165,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Security Scopes */}
+     
       <section className="py-20 px-6 bg-white/5">
         <div className="container mx-auto">
           <motion.div
@@ -210,7 +205,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
+  
       <section className="py-20 px-6">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -237,7 +232,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 px-6 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
         <div className="container mx-auto text-center">
           <motion.div
@@ -263,7 +257,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      
       <footer className="py-12 px-6 border-t border-white/10">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
