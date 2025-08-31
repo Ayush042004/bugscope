@@ -1,10 +1,10 @@
-import { NextRequest } from "next/server";
+
 import fs from "fs";
 import path from "path";
 import dbConnect from "@/lib/dbConnect";
 import TemplateModel from "@/model/checklistTemplate";
 
-export async function POST(request: NextRequest){
+export async function POST(){
     await dbConnect();
     try {
         const filePath = path.join(process.cwd(),"src","scripts","templates","web.json");

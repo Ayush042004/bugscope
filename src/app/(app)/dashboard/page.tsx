@@ -107,8 +107,8 @@ export default function DashboardPage() {
         setChecklist(res.data as ChecklistDoc);
         return;
       }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && err.response.status === 404) {
         try {
           const tempRes = await axios.get(ROUTES.GET_TEMPLATE(scope));
           const template = tempRes.data.template;
@@ -126,11 +126,13 @@ export default function DashboardPage() {
           const { checklist: created } = createRes.data;
           setChecklist(created);
           toast.success(`Seeded ${scope} checklist for you.`);
-        } catch (innerErr: any) {
-          toast.error(innerErr.message ?? 'Failed to seed checklist');
+        } catch (innerErr: unknown) {
+          const errorMessage = innerErr instanceof Error ? innerErr.message : 'Failed to seed checklist';
+          toast.error(errorMessage);
         }
       } else {
-        toast.error(err.message ?? 'Failed to load checklist');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load checklist';
+        toast.error(errorMessage);
       }
     } finally {
       setLoadingChecklist(false);
@@ -209,8 +211,9 @@ export default function DashboardPage() {
       if (patch.checked) {
         toast.success('Check completed!', { icon: '✅' });
       }
-    } catch (e: any) {
-      toast.error(e.message ?? 'Could not update item');
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Could not update item';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -238,8 +241,9 @@ export default function DashboardPage() {
       }
       setAiSuggestions(data.data.suggestions);
       toast.success('AI suggestions loaded!', { icon: '🤖' });
-    } catch (e: any) {
-      toast.error(e.message ?? 'Could not fetch suggestions');
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Could not fetch suggestions';
+      toast.error(errorMessage);
     } finally {
       setSuggestLoading(false);
     }
@@ -737,7 +741,7 @@ export default function DashboardPage() {
                         >
                           <div className="mb-3 font-medium text-white text-sm">{cat.name}</div>
                           <ul className="space-y-2">
-                            {(cat.items as any[]).map((it, idx) => (
+                            {(cat.items as Array<{ text: string; solution?: string }>).map((it, idx) => (
                               <motion.li 
                                 key={idx} 
                                 initial={{ opacity: 0, x: -5 }}

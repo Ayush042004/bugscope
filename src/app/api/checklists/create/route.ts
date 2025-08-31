@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { User } from "next-auth";
 
+
 export async function POST(request:NextRequest){
     await dbConnect();
     const session = await getServerSession(authOptions);
@@ -24,9 +25,9 @@ try {
      const checklist = new ChecklistModel({
        userId,
        scope,
-       categories: template.categories.map((cat: any) => ({
+       categories: template.categories.map((cat: { name: string; items: { text: string; tooltip?: string }[] }) => ({
          name: cat.name,
-         items: cat.items.map((item: any) => ({
+         items: cat.items.map((item: { text: string; tooltip?: string }) => ({
            text: item.text,
            tooltip: item.tooltip,
            checked: false,

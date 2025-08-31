@@ -5,32 +5,44 @@ import ChecklistModel from "@/model/Checklists";
 import { NextRequest } from "next/server";
 import { User } from "next-auth";
 
-export async function GET(request: NextRequest, context: { params: { scope: string } }) {
+export async function GET(
+  request: NextRequest, 
+  context: { params: Promise<{ scope: string }> }
+) {
   await dbConnect();
   const session = await getServerSession(authOptions);
-  const user:User = session?.user as User 
+  const user: User = session?.user as User;
   
-     if(!session || !session?.user) {
-        return Response.json(
+  if (!session || !session?.user) {
+    return Response.json(
       { success: false, message: 'Not authenticated' },
       { status: 401 }
-    );}
-   const userId = user._id;
-   try {
-     const checklist = await ChecklistModel.findOne({
-    userId,
-    scope:  context.params.scope
-  });
+    );
+  }
+  
+  const userId = user._id;
+  const { scope } = await context.params;
+  
+  try {
+    const checklist = await ChecklistModel.findOne({
+      userId,
+      scope: scope
+    });
 
-  if (!checklist) return Response.json({  success:false,message:"Error getting checklist" }, { status: 404 });
-  return Response.json(checklist);
+    if (!checklist) {
+      return Response.json(
+        { success: false, message: "Error getting checklist" }, 
+        { status: 404 }
+      );
+    }
     
-   } catch (error) {
-    console.error("Error getting user checlist",error)
-     return Response.json(
+    return Response.json(checklist);
+    
+  } catch (error) {
+    console.error("Error getting user checklist", error);
+    return Response.json(
       { success: false, message: "Server error" },
       { status: 500 }
     );
-   }
- 
+  }
 }
