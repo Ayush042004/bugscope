@@ -53,22 +53,24 @@ const features = [
   }
 ];
 
+
 const scopes = [
   { icon: Globe, name: 'Web Application', count: '45+ checks' },
-  { icon: Network, name: 'API Security', count: '38+ checks' },
-  { icon: Smartphone, name: 'Mobile Security', count: '42+ checks' },
-  { icon: Wifi, name: 'IoT Security', count: '35+ checks' },
-  { icon: Cloud, name: 'Cloud Security', count: '40+ checks' },
-  { icon: Brain, name: 'AI/LLM Security', count: '28+ checks' },
-  { icon: Server, name: 'Network Security', count: '33+ checks' },
-  { icon: Database, name: 'Database Security', count: '31+ checks' }
+  { icon: Network, name: 'API Security', count: 'Coming Soon' },
+  { icon: Smartphone, name: 'Mobile Security', count: 'Coming Soon' },
+  { icon: Wifi, name: 'IoT Security', count: 'Coming Soon' },
+  { icon: Cloud, name: 'Cloud Security', count: 'Coming Soon' },
+  { icon: Brain, name: 'AI/LLM Security', count: 'Coming Soon' },
+  { icon: Server, name: 'Network Security', count: 'Coming Soon' },
+  { icon: Database, name: 'Database Security', count: 'Coming Soon' }
 ];
 
+
 const stats = [
-  { icon: Users, value: '10,000+', label: 'Security Researchers' },
-  { icon: Bug, value: '50,000+', label: 'Vulnerabilities Found' },
-  { icon: Award, value: '99.9%', label: 'Success Rate' },
-  { icon: TrendingUp, value: '24/7', label: 'Platform Uptime' }
+  { icon: Users, value: 'Growing', label: 'Security Researchers' },
+  { icon: Bug, value: 'Early Reports', label: 'Vulnerabilities Found' },
+  { icon: Award, value: 'Beta', label: 'Success Rate' },
+  { icon: TrendingUp, value: 'In Progress', label: 'Platform Uptime' }
 ];
 
 export default function LandingPage() {
@@ -87,8 +89,9 @@ export default function LandingPage() {
           >
             <Badge className="mb-6 bg-white/10 text-white border-white/20">
               <Star className="h-4 w-4 mr-2" />
-              Trusted by 10,000+ Security Researchers
+                    Empowering a Growing Security Community
             </Badge>
+
             
             <h1 className="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
               Next-Gen Security
