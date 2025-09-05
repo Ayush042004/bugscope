@@ -6,6 +6,7 @@ import dbConnect from '@/lib/dbConnect';
 import UserModel from '@/model/User';
 
 interface CustomUser {
+  id: string;
   _id?: string;
   email: string;
   username: string;
@@ -46,7 +47,8 @@ export const authOptions: NextAuthOptions = {
             const userId = (user._id as { toString: () => string }).toString();
             return {
               id: userId,
-              name: user.username,
+              _id: userId,
+              username: user.username,
               email: user.email,
               image: user.avatar || null,
             };

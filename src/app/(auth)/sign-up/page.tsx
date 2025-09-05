@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { signIn } from 'next-auth/react';
 
 function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +39,19 @@ function SignUpPage() {
     try {
       const response = await axios.post<ApiResponse>('/api/sign-up', data);
       toast.success(response.data.message);
-      router.replace('/dashboard');
+      const loginRes = await signIn('credentials', {
+        redirect: false,
+        identifier: data.email,
+        password: data.password,
+      });
+
+    if (loginRes?.ok) {
+        router.replace('/dashboard');
+      } else {
+        toast.error("Sign-up successful, but auto-login failed. Please sign in.");
+        router.replace('/sign-in');
+      }
+      
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       const errorMessage = axiosError.response?.data.message;

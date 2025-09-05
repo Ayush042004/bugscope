@@ -2,16 +2,17 @@ import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
 import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
+import sanitize from "mongo-sanitize";
 
 
 export async function POST(request: NextRequest){
     await dbConnect();
-
     try {
         const {username,email,password} = await request.json();
+        const safeUsername = sanitize(username);
 
         const existingUserByUsername = await UserModel.findOne({
-            username:username,
+            username:safeUsername,
         });
 
         if(existingUserByUsername) {
