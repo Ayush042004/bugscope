@@ -9,25 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-
-
 import {
   Shield,
-  Target,
-  Bug,
   Lightbulb,
   FileText,
-  Search,
   Download,
   Sparkles,
   CheckCircle2,
@@ -42,18 +30,26 @@ import {
   Network,
   Database,
   Server,
+  ChevronRight,
+  ChevronsDown,
+  ChevronsUp,
 } from 'lucide-react';
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import jsPDF from 'jspdf';
 
 const ROUTES = {
-  CREATE_CHECKLIST: '/api/checklists/create', // POST { scope }
+  CREATE_CHECKLIST: '/api/checklists/create',
   GET_USER_CHECKLIST: (scope: string) => `/api/checklists/${encodeURIComponent(scope)}`,
   GET_TEMPLATE: (scope: string) => `/api/get-temp/${encodeURIComponent(scope)}`,
-  PATCH_ITEM: '/api/checklists/update',       // PATCH { scope, categoryName, itemText, checked?, note? }
-  AI_SUGGEST: '/api/suggest',                 // POST { scope, categories }
+  PATCH_ITEM: '/api/checklists/update',
+  AI_SUGGEST: '/api/suggest',
 };
 
-/* ------------------------------ TYPES (match DB) --------------------------- */
 type ChecklistItem = {
   text: string;
   tooltip?: string | null;
@@ -74,33 +70,32 @@ type ChecklistDoc = {
 };
 
 const SCOPES = [
-  { id: 'Web', name: 'Web App', icon: Globe, color: 'from-blue-500 to-cyan-500', bgColor: 'from-blue-500/20 to-cyan-500/20' },
-  { id: 'api', name: 'API', icon: Network, color: 'from-green-500 to-emerald-500', bgColor: 'from-green-500/20 to-emerald-500/20' },
-  { id: 'mobile', name: 'Mobile', icon: Smartphone, color: 'from-purple-500 to-pink-500', bgColor: 'from-purple-500/20 to-pink-500/20' },
-  { id: 'iot', name: 'IoT', icon: Wifi, color: 'from-orange-500 to-red-500', bgColor: 'from-orange-500/20 to-red-500/20' },
-  { id: 'cloud', name: 'Cloud', icon: Cloud, color: 'from-indigo-500 to-blue-500', bgColor: 'from-indigo-500/20 to-blue-500/20' },
-  { id: 'aiml', name: 'AI/ML', icon: Brain, color: 'from-violet-500 to-purple-500', bgColor: 'from-violet-500/20 to-purple-500/20' },
-  { id: 'network', name: 'Network', icon: Server, color: 'from-teal-500 to-cyan-500', bgColor: 'from-teal-500/20 to-cyan-500/20' },
-  { id: 'database', name: 'Database', icon: Database, color: 'from-amber-500 to-orange-500', bgColor: 'from-amber-500/20 to-orange-500/20' },
+  { id: 'Web', name: 'Web App', icon: Globe },
+  { id: 'api', name: 'API', icon: Network },
+  { id: 'mobile', name: 'Mobile', icon: Smartphone },
+  { id: 'iot', name: 'IoT', icon: Wifi },
+  { id: 'cloud', name: 'Cloud', icon: Cloud },
+  { id: 'aiml', name: 'AI/ML', icon: Brain },
+  { id: 'network', name: 'Network', icon: Server },
+  { id: 'database', name: 'Database', icon: Database },
 ];
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-
   const [selectedScope, setSelectedScope] = useState<string>('Web');
   const [checklist, setChecklist] = useState<ChecklistDoc | null>(null);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<ChecklistCategory[]>([]);
   const [search, setSearch] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-  /* ---------------------- LOAD OR CREATE CHECKLIST FLOW -------------------- */
   const loadChecklist = useCallback(async (scope: string) => {
     setLoadingChecklist(true);
     setChecklist(null);
     setAiSuggestions([]);
-
     try {
       const res = await axios.get(ROUTES.GET_USER_CHECKLIST(scope));
       if (res.status === 200) {
@@ -112,17 +107,14 @@ export default function DashboardPage() {
         try {
           const tempRes = await axios.get(ROUTES.GET_TEMPLATE(scope));
           const template = tempRes.data.template;
-
           if (!template) {
             toast.error(`No template available for ${scope}`);
             return;
           }
-
           const createRes = await axios.post(ROUTES.CREATE_CHECKLIST, {
             scope,
             categories: template.categories,
           });
-
           const { checklist: created } = createRes.data;
           setChecklist(created);
           toast.success(`Seeded ${scope} checklist for you.`);
@@ -145,7 +137,6 @@ export default function DashboardPage() {
     }
   }, [selectedScope, session, loadChecklist]);
 
-  /* ------------------------------- PROGRESS -------------------------------- */
   const { progressPct, total, done } = useMemo(() => {
     if (!checklist) return { progressPct: 0, total: 0, done: 0 };
     const totalItems = checklist.categories.reduce((acc, c) => acc + c.items.length, 0);
@@ -160,12 +151,10 @@ export default function DashboardPage() {
     };
   }, [checklist]);
 
-  /* ----------------------------- FILTERED VIEW ----------------------------- */
   const filteredCategories = useMemo(() => {
     if (!checklist) return [];
     const s = search.trim().toLowerCase();
     if (!s) return checklist.categories;
-
     return checklist.categories
       .map((cat) => ({
         ...cat,
@@ -179,7 +168,6 @@ export default function DashboardPage() {
       .filter((cat) => cat.items.length > 0);
   }, [checklist, search]);
 
-  /* ------------------------------- MUTATIONS ------------------------------- */
   const patchItem = async (
     scope: string,
     categoryName: string,
@@ -194,8 +182,6 @@ export default function DashboardPage() {
         body: JSON.stringify({ scope, categoryName, itemText, ...patch }),
       });
       if (!res.ok) throw new Error(await res.text());
-
-      
       setChecklist((prev) => {
         if (!prev) return prev;
         const next = structuredClone(prev) as ChecklistDoc;
@@ -207,7 +193,6 @@ export default function DashboardPage() {
         }
         return next;
       });
-
       if (patch.checked) {
         toast.success('Check completed!', { icon: '✅' });
       }
@@ -219,7 +204,6 @@ export default function DashboardPage() {
     }
   };
 
-  /* ---------------------------- AI SUGGESTIONS ----------------------------- */
   const fetchSuggestions = async () => {
     if (!checklist) return;
     setSuggestLoading(true);
@@ -249,23 +233,182 @@ export default function DashboardPage() {
     }
   };
 
-  /* --------------------------------- UI ----------------------------------- */
+  const toggleCategory = (name: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [name]: !prev[name],
+    }));
+  };
+
+  const expandAll = () => {
+    if (!checklist) return;
+    const newExpanded: Record<string, boolean> = {};
+    checklist.categories.forEach((c) => {
+      newExpanded[c.name] = true;
+    });
+    setExpandedCategories(newExpanded);
+  };
+
+  const collapseAll = () => {
+    if (!checklist) return;
+    const newExpanded: Record<string, boolean> = {};
+    checklist.categories.forEach((c) => {
+      newExpanded[c.name] = false;
+    });
+    setExpandedCategories(newExpanded);
+  };
+
+  const allExpanded = useMemo(() => {
+    if (!checklist) return true;
+    return checklist.categories.every((c) => expandedCategories[c.name] ?? true);
+  }, [checklist, expandedCategories]);
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      collapseAll();
+    } else {
+      expandAll();
+    }
+  };
+
+  const exportMarkdown = async () => {
+    if (!checklist) return;
+    setExportLoading('Markdown');
+    try {
+      const content = `# ${selectedScope} Security Checklist\n\n` +
+        checklist.categories
+          .map((cat) => {
+            return `## ${cat.name}\n` +
+              cat.items
+                .map(
+                  (item) =>
+                    `- [${item.checked ? 'x' : ' '}] ${item.text}\n` +
+                    (item.tooltip ? `  - **Tooltip**: ${item.tooltip}\n` : '') +
+                    (item.note ? `  - **Note**: ${item.note}\n` : '')
+                )
+                .join('\n');
+          })
+          .join('\n\n');
+      const blob = new Blob([content], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedScope}_checklist.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Markdown exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export Markdown');
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const exportCSV = async () => {
+    if (!checklist) return;
+    setExportLoading('CSV');
+    try {
+      const headers = ['Category,Item,Status,Tooltip,Note'];
+      const rows = checklist.categories.flatMap((cat) =>
+        cat.items.map(
+          (item) =>
+            `"${cat.name}","${item.text.replace(/"/g, '""')}",${item.checked ? 'Completed' : 'Pending'},"${(item.tooltip || '').replace(/"/g, '""')}","${(item.note || '').replace(/"/g, '""')}"`
+        )
+      );
+      const content = headers.concat(rows).join('\n');
+      const blob = new Blob([content], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedScope}_checklist.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('CSV exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export CSV');
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const exportJSON = async () => {
+    if (!checklist) return;
+    setExportLoading('JSON');
+    try {
+      const content = JSON.stringify(checklist, null, 2);
+      const blob = new Blob([content], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedScope}_checklist.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('JSON exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export JSON');
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const exportPDF = async () => {
+    if (!checklist) return;
+    setExportLoading('PDF');
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text(`${selectedScope} Security Checklist`, 20, 20);
+      let y = 30;
+      checklist.categories.forEach((cat) => {
+        doc.setFontSize(14);
+        doc.text(cat.name, 20, y, { maxWidth: 160 });
+        y += 10;
+        cat.items.forEach((item) => {
+          doc.setFontSize(10);
+          doc.text(`- [${item.checked ? 'X' : ' '}] ${item.text}`, 25, y, { maxWidth: 150 });
+          y += 6;
+          if (item.tooltip) {
+            doc.setFontSize(8);
+            doc.text(`Tooltip: ${item.tooltip}`, 30, y, { maxWidth: 140 });
+            y += 5;
+          }
+          if (item.note) {
+            doc.setFontSize(8);
+            doc.text(`Note: ${item.note}`, 30, y, { maxWidth: 140 });
+            y += 5;
+          }
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+        });
+        y += 5;
+      });
+      doc.save(`${selectedScope}_checklist.pdf`);
+      toast.success('PDF exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export PDF');
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 grid place-items-center">
+      <div className="min-h-screen w-full bg-gradient-to-br from-[#0B0F19] via-[#1E1B4B] to-[#0B0F19] grid place-items-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="text-center"
         >
-          <div className="p-8 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-lg shadow-2xl">
+          <div className="p-10 rounded-2xl bg-[rgba(20,25,40,0.8)] border border-[#2D3748] backdrop-blur-xl shadow-2xl">
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="h-20 w-20 rounded-full border-4 border-blue-500/20 border-t-blue-500 mx-auto mb-6"
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              className="h-16 w-16 rounded-full border-4 border-[#6C63FF]/30 border-t-[#00E0FF] mx-auto mb-6"
             />
-            <h2 className="text-2xl font-bold text-white mb-3">Loading Dashboard</h2>
-            <p className="text-white/70">Preparing your security testing workspace...</p>
+            <h2 className="text-2xl font-semibold text-[#E5E7EB] mb-2">Loading Dashboard</h2>
+            <p className="text-[#A1A1AA] text-sm">Preparing your security testing workspace...</p>
           </div>
         </motion.div>
       </div>
@@ -274,19 +417,21 @@ export default function DashboardPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 grid place-items-center">
+      <div className="min-h-screen w-full bg-gradient-to-br from-[#0B0F19] via-[#1E1B4B] to-[#0B0F19] grid place-items-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="text-center text-white"
+          className="text-center text-[#E5E7EB]"
         >
-          <div className="p-6 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-lg shadow-2xl">
-            <Shield className="h-20 w-20 mx-auto mb-6 text-blue-400" />
-            <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Authentication Required</h2>
-            <p className="text-white/70 mb-8 text-lg">Please sign in to access your security testing dashboard</p>
-            <Button 
-              onClick={() => signIn()} 
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-8 py-3 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-300"
+          <div className="p-8 rounded-2xl bg-[rgba(20,25,40,0.8)] border border-[#2D3748] backdrop-blur-xl shadow-2xl">
+            <Shield className="h-16 w-16 mx-auto mb-6 text-[#6C63FF]" />
+            <h2 className="text-2xl font-semibold mb-2 bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] bg-clip-text text-transparent">Authentication Required</h2>
+            <p className="text-[#A1A1AA] mb-6 text-sm">Please sign in to access your security testing dashboard</p>
+            <Button
+              onClick={() => signIn()}
+              className="bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] text-[#E5E7EB] border-0 px-6 py-2 text-sm font-semibold rounded-full shadow-lg transition-all duration-300 relative
+                before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#00E0FF44] before:to-[#6C63FF44] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              aria-label="Sign in to access the dashboard"
             >
               Sign In
             </Button>
@@ -296,512 +441,412 @@ export default function DashboardPage() {
     );
   }
 
-  const selectedScopeData = SCOPES.find(s => s.id === selectedScope);
+  const selectedScopeData = SCOPES.find((s) => s.id === selectedScope);
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <main className="container py-6 space-y-8 pt-24">
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid gap-4 md:grid-cols-4"
-          >
-            <Card className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 py-6">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/70 mb-1">Total Checks</p>
-                    <p className="text-3xl font-bold text-white">{total}</p>
-                  </div>
-                  <div className="p-4 rounded-full bg-blue-500/20 border border-blue-500/30">
-                    <Activity className="h-7 w-7 text-blue-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/30 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/70 mb-1">Completed</p>
-                    <p className="text-3xl font-bold text-white">{done}</p>
-                  </div>
-                  <div className="p-4 rounded-full bg-green-500/20 border border-green-500/30">
-                    <CheckCircle2 className="h-7 w-7 text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/70 mb-1">Progress</p>
-                    <p className="text-3xl font-bold text-white">{progressPct}%</p>
-                  </div>
-                  <div className="p-4 rounded-full bg-purple-500/20 border border-purple-500/30">
-                    <TrendingUp className="h-7 w-7 text-purple-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/30 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/70 mb-1">Remaining</p>
-                    <p className="text-3xl font-bold text-white">{total - done}</p>
-                  </div>
-                  <div className="p-4 rounded-full bg-orange-500/20 border border-orange-500/30">
-                    <Zap className="h-7 w-7 text-orange-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.section>
-
-        
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-white/10 border-white/20 backdrop-blur-lg shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Target className="h-5 w-5 text-blue-400" />
-                  Select Testing Scope
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-8">
-                  {SCOPES.map((scope, index) => {
-                    const Icon = scope.icon;
-                    const isSelected = selectedScope === scope.id;
-                    
-                    return (
-                      <motion.div
-                        key={scope.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        whileHover={{ scale: 1.05, y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Button
-                          variant={isSelected ? 'default' : 'outline'}
-                          onClick={() => setSelectedScope(scope.id)}
-                          className={`w-full h-24 flex flex-col gap-3 relative overflow-hidden transition-all duration-300 ${
-                            isSelected 
-                              ? `bg-gradient-to-r ${scope.color} text-white border-transparent shadow-xl` 
-                              : 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/40 hover:shadow-lg'
-                          }`}
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="scope-selector"
-                              className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20"
-                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                          )}
-                          <Icon className="h-7 w-7" />
-                          <span className="text-sm font-medium">{scope.name}</span>
-                        </Button>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.section>
-
-
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
-          >
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-white/50" />
-              <Input
-                placeholder="Search security checks, tooltips, or notes…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 bg-white/10 border-white/30 text-white placeholder:text-white/50 focus:border-blue-400/50 focus:ring-blue-400/20 h-12 text-base"
+      <div className="min-h-screen w-full bg-[rgba(10,12,20,0.95)] relative overflow-x-hidden box-border font-sans">
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="w-full h-full bg-gradient-to-tr from-[#6C63FF]/10 via-[#00E0FF]/5 to-transparent animate-gradientMove" />
+        </div>
+        <header className="sticky top-0 z-20 bg-[rgba(10,12,20,0.85)] backdrop-blur-xl shadow-md border-b border-[#2D3748]">
+          <div className="w-full mx-auto flex items-center justify-between py-4 px-10">
+            <div className="flex items-center gap-2">
+              <Shield className="h-7 w-7 text-[#E5E7EB]" />
+              <span className="font-display text-xl font-semibold text-[#E5E7EB] tracking-tight">BugScope</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-[#A1A1AA] tracking-tight">Hi, {session?.user?.name?.split(' ')[0] || 'User'}</span>
+              <img
+                src={session?.user?.image || '/avatar.svg'}
+                alt="User avatar"
+                className="h-8 w-8 rounded-full border-2 border-[#6C63FF] shadow-md hover:shadow-[0_0_10px_rgba(108,99,255,0.5)] transition-all duration-300"
               />
             </div>
-            <div className="flex gap-3">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button 
-                  variant="outline" 
-                  onClick={() => loadChecklist(selectedScope)}
-                  className="border-white/30 text-white hover:bg-white/20 hover:border-white/40 bg-white/5 h-12 px-6"
-                  disabled={loadingChecklist}
-                >
-                  {loadingChecklist ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full mr-2"
-                    />
-                  ) : (
-                    <Activity className="mr-2 h-4 w-4" />
-                  )}
-                  Refresh
-                </Button>
-              </motion.div>
-              
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button 
-                  onClick={fetchSuggestions} 
-                  disabled={!checklist || suggestLoading}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-lg h-12 px-6"
-                >
-                  {suggestLoading ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full mr-2"
-                    />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  {suggestLoading ? 'Analyzing…' : 'AI Suggestions'}
-                </Button>
-              </motion.div>
+          </div>
+        </header>
+        <main className="w-full mx-auto py-12 px-10 space-y-10 relative z-10">
+          <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <h1 className="font-display text-3xl font-semibold text-[#E5E7EB] mb-1 tracking-tight">Security Testing Dashboard</h1>
+              <p className="text-[#A1A1AA] text-sm font-medium tracking-tight">Track, manage, and document your security checks with ease.</p>
             </div>
-          </motion.section>
-
-         
-          <section className="grid gap-6 lg:grid-cols-4">
-          
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }} 
-              animate={{ opacity: 1, x: 0 }} 
-              transition={{ delay: 0.4 }}
-              className="lg:col-span-3"
-            >
-              <Card className="bg-white/10 border-white/20 backdrop-blur-lg shadow-xl">
-                <CardHeader>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => loadChecklist(selectedScope)}
+                className="relative bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] text-[#E5E7EB] rounded-full px-5 py-2 text-sm font-semibold shadow-md border-0 btn-shimmer transition-all duration-300 overflow-hidden
+                  before:absolute before:inset-0 before:rounded-full before:bg-gradient-to-r before:from-[#00E0FF44] before:to-[#6C63FF44] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                disabled={loadingChecklist}
+                aria-label="Refresh the checklist"
+              >
+                {loadingChecklist ? (
+                  <span className="animate-spin mr-2 h-4 w-4 border-2 border-[#E5E7EB] border-t-[#6C63FF] rounded-full" />
+                ) : (
+                  <Activity className="mr-2 h-4 w-4" />
+                )}
+                Refresh
+              </Button>
+            </div>
+          </section>
+          <section className="flex gap-3 flex-wrap">
+            {SCOPES.map((scope) => {
+              const Icon = scope.icon;
+              const isSelected = selectedScope === scope.id;
+              return (
+                <Button
+                  key={scope.id}
+                  variant="outline"
+                  onClick={() => setSelectedScope(scope.id)}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition shadow-sm overflow-hidden
+                    ${isSelected
+                      ? 'bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] text-[#E5E7EB] border-0 ring-1 ring-[#6C63FF]'
+                      : 'bg-[rgba(20,25,40,0.7)] border-[#2D3748] text-[#A1A1AA] hover:bg-[rgba(30,35,50,0.7)] hover:text-[#E5E7EB] hover:border-[#6C63FF]'}
+                    before:absolute before:inset-0 before:rounded-full before:bg-gradient-to-r before:from-[#00E0FF44] before:to-[#6C63FF44] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
+                  `}
+                  aria-label={`Select ${scope.name} scope`}
+                >
+                  <Icon
+                    className={`h-4 w-4 ${
+                      isSelected ? 'text-[#E5E7EB]' : 'text-[#A1A1AA] group-hover:text-[#E5E7EB]'
+                    }`}
+                  />
+                  <span>{scope.name}</span>
+                  {isSelected && (
+                    <span className="ml-2 w-2 h-2 rounded-full bg-[#FF6B6B] animate-pulse" /> // Changed dot color to #FF6B6B (red)
+                  )}
+                </Button>
+              );
+            })}
+          </section>
+          <section className="grid gap-6 md:grid-cols-4">
+            {[
+              { label: 'Total Checks', value: total, icon: <Activity className="h-6 w-6 text-[#E5E7EB]" /> },
+              { label: 'Completed', value: done, icon: <CheckCircle2 className="h-6 w-6 text-[#E5E7EB]" /> },
+              { label: 'Progress', value: `${progressPct}%`, icon: <TrendingUp className="h-6 w-6 text-[#E5E7EB]" /> },
+              { label: 'Remaining', value: total - done, icon: <Zap className="h-6 w-6 text-[#E5E7EB]" /> },
+            ].map((stat) => (
+              <Card
+                key={stat.label}
+                className="rounded-xl border border-[#2D3748] shadow-lg bg-[rgba(20,25,40,0.7)] backdrop-blur-md transition relative
+                  before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              >
+                <CardContent className="p-6">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-3 text-white">
-                      {selectedScopeData && (
-                        <div className={`p-2 rounded-lg bg-gradient-to-r ${selectedScopeData.color} shadow-lg`}>
-                          <selectedScopeData.icon className="h-5 w-5 text-white" />
-                        </div>
-                      )}
+                    <div>
+                      <p className="text-xs text-[#A1A1AA] mb-1 font-medium tracking-tight">{stat.label}</p>
+                      <p className="text-2xl font-semibold text-[#E5E7EB] tracking-tight">{stat.value}</p>
+                    </div>
+                    {stat.icon}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </section>
+          <section className="flex flex-col gap-8 lg:flex-row">
+            <div className="flex-1">
+              <div className="mb-6">
+                <Input
+                  placeholder="🔍 Search checks, tooltips, or notes…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full px-5 py-3 border border-[#2D3748] rounded-xl text-[#E5E7EB] placeholder:text-[#6B7280] text-sm font-medium focus:border-[#6C63FF] focus:ring-0 shadow-sm bg-[rgba(20,25,40,0.7)] backdrop-blur-md"
+                  aria-label="Search checklist items"
+                />
+              </div>
+              <Card className="rounded-xl border border-[#2D3748] shadow-lg bg-[rgba(20,25,40,0.7)] backdrop-blur-md transition relative
+                before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2 text-[#E5E7EB] text-xl font-semibold tracking-tight">
+                      {selectedScopeData && <selectedScopeData.icon className="h-5 w-5 text-[#E5E7EB]" />}
                       {selectedScopeData?.name} Security Checklist
                     </CardTitle>
-                    
-                    {saving && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-2 text-sm text-white/70"
-                      >
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-4 h-4 border-2 border-blue-400/50 border-t-blue-400 rounded-full"
-                        />
-                        Saving...
-                      </motion.div>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleAll}
+                      className="text-[#6C63FF] hover:text-[#00E0FF] hover:bg-[#6C63FF]/10 text-sm"
+                      aria-label={allExpanded ? 'Collapse all categories' : 'Expand all categories'}
+                    >
+                      {allExpanded ? (
+                        <>
+                          <ChevronsUp className="h-4 w-4 mr-1" />
+                          Collapse All
+                        </>
+                      ) : (
+                        <>
+                          <ChevronsDown className="h-4 w-4 mr-1" />
+                          Expand All
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  
                   {checklist && (
                     <div className="flex items-center gap-4 mt-4">
-                      <div className="flex-1">
-                        <Progress value={progressPct} className="h-3 bg-white/10" />
+                      <div className="flex-1 relative">
+                        <Progress value={progressPct} className="h-2.5 rounded-full bg-[#2D3748] shadow-sm" />
+                        <motion.div
+                          className="absolute inset-0 h-2.5 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] opacity-90 shadow-[0_0_8px_rgba(108,99,255,0.5)]"
+                          style={{ width: `${progressPct}%` }}
+                          animate={{ width: `${progressPct}%` }}
+                          transition={{ duration: 0.5, ease: 'easeInOut' }}
+                        />
+                        <span className="absolute right-0 top-[-20px] text-xs font-medium text-[#00E0FF] bg-[rgba(20,25,40,0.7)] px-1 rounded">{progressPct}%</span>
                       </div>
-                      <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      <Badge
+                        variant="secondary"
+                        className="bg-[#6C63FF]/10 text-[#6C63FF] border-[#6C63FF] text-xs font-medium px-2 py-1"
+                      >
                         {done}/{total} completed
                       </Badge>
+                      {progressPct === 100 && (
+                        <motion.span
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="text-[#00E0FF] text-sm font-medium flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Complete!
+                        </motion.span>
+                      )}
                     </div>
                   )}
                 </CardHeader>
-                
                 <CardContent>
-                  {loadingChecklist && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="grid place-items-center py-16"
-                    >
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="h-12 w-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 mb-4"
-                      />
-                      <p className="text-white/70">Loading security checklist...</p>
-                    </motion.div>
-                  )}
-
-                  {!loadingChecklist && !checklist && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="text-center py-16"
-                    >
-                      <Bug className="h-16 w-16 text-white/30 mx-auto mb-4" />
-                      <p className="text-white/70">No checklist found for this scope</p>
-                      <Button 
-                        onClick={() => loadChecklist(selectedScope)}
-                        className="mt-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg"
-                      >
-                        Create Checklist
-                      </Button>
-                    </motion.div>
-                  )}
-
                   {!loadingChecklist && checklist && (
                     <div className="space-y-6">
-                      <AnimatePresence mode="wait">
-                        {filteredCategories.map((cat, catIndex) => (
-                          <motion.div
-                            key={cat.name}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ delay: catIndex * 0.05 }}
-                            className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm overflow-hidden shadow-lg"
-                          >
-                            <div className="p-4 bg-gradient-to-r from-white/10 to-transparent border-b border-white/20">
-                              <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-white text-lg">{cat.name}</h3>
-                                <motion.div
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ delay: catIndex * 0.1 + 0.2 }}
-                                >
-                                  <Badge 
-                                    variant="outline" 
-                                    className="bg-white/20 border-white/30 text-white"
+                      <AnimatePresence>
+                        {filteredCategories.map((cat) => {
+                          const completed = cat.items.filter((i) => i.checked).length;
+                          const allDone = completed === cat.items.length;
+                          const expanded = expandedCategories[cat.name] ?? true;
+                          return (
+                            <motion.div
+                              key={cat.name}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.3 }}
+                              className="rounded-xl border border-[#2D3748] bg-[rgba(20,25,40,0.7)] p-6 shadow-sm relative
+                                before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                            >
+                              <button
+                                className="flex items-center justify-between w-full mb-3 cursor-pointer focus:outline-none"
+                                onClick={() => toggleCategory(cat.name)}
+                                aria-expanded={expanded}
+                                aria-label={`Toggle ${cat.name} category`}
+                              >
+                                <h3 className="font-semibold text-[#E5E7EB] text-base tracking-tight">{cat.name}</h3>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
+                                      ${allDone ? 'bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] text-white' : 'bg-[#6C63FF]/10 text-[#6C63FF]'}
+                                    `}
                                   >
-                                    {cat.items.filter((i) => i.checked).length}/{cat.items.length}
-                                  </Badge>
-                                </motion.div>
-                              </div>
-                            </div>
-
-                            <div className="p-4 space-y-3">
+                                    {allDone && <CheckCircle2 className="h-3 w-3 text-white mr-1" />}
+                                    {completed}/{cat.items.length}
+                                  </div>
+                                  <ChevronRight
+                                    className={`h-4 w-4 transition-transform duration-300 ${
+                                      expanded ? 'rotate-90' : 'rotate-0'
+                                    } ${allDone ? 'text-[#00E0FF]' : 'text-[#A1A1AA]'}`}
+                                  />
+                                </div>
+                              </button>
                               <AnimatePresence>
-                                {cat.items.map((item, itemIndex) => (
+                                {expanded && (
                                   <motion.div
-                                    key={`${cat.name}-${item.text}`}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 10 }}
-                                    transition={{ delay: itemIndex * 0.02 }}
-                                    whileHover={{ scale: 1.01 }}
-                                    className={`rounded-lg border p-4 transition-all duration-200 ${
-                                      item.checked 
-                                        ? 'bg-green-500/20 border-green-500/40 shadow-lg' 
-                                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 hover:shadow-md'
-                                    }`}
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="space-y-4"
                                   >
-                                    <div className="flex items-start gap-3">
+                                    {cat.items.map((item) => (
                                       <motion.div
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.9 }}
+                                        key={`${cat.name}-${item.text}`}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`rounded-xl border px-5 py-4 flex gap-4 items-center cursor-pointer relative
+                                          ${item.checked
+                                            ? 'bg-gradient-to-r from-[#6C63FF]/20 to-[#00E0FF]/10 border-[#6C63FF]'
+                                            : 'bg-[rgba(20,25,40,0.7)] border-[#2D3748]'}
+                                          before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-2/3 before:h-[1px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
+                                        `}
+                                        onClick={() =>
+                                          patchItem(checklist.scope, cat.name, item.text, {
+                                            checked: !item.checked,
+                                            note: item.note,
+                                          })
+                                        }
+                                        aria-label={`Toggle ${item.text} checklist item`}
                                       >
-                                        <Checkbox
-                                          checked={item.checked}
-                                          onCheckedChange={(v) =>
-                                            patchItem(checklist.scope, cat.name, item.text , {
-                                              checked: Boolean(v),
-                                              note: item.note,
-                                            })
-                                          }
-                                          className="mt-1 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                                        />
-                                      </motion.div>
-                                      
-                                      <div className="flex-1 space-y-2">
-                                        <div className="flex items-start gap-2">
-                                          <span
-                                            className={`text-sm leading-relaxed ${
-                                              item.checked 
-                                                ? 'line-through text-white/50' 
-                                                : 'text-white'
-                                            }`}
-                                          >
-                                            {item.text}
-                                          </span>
-                                          {item.tooltip && (
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <motion.span 
-                                                  whileHover={{ scale: 1.1 }}
-                                                  className="text-xs cursor-help text-blue-400 underline decoration-dotted hover:text-blue-300"
-                                                >
-                                                  info
-                                                </motion.span>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="top" align="start" className="max-w-xs bg-black/90 text-white border-white/20">
-                                                {item.tooltip}
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          )}
-                                        </div>
-                                        
-                                        <motion.div
-                                          initial={false}
-                                          animate={{ opacity: item.checked ? 0.7 : 1 }}
+                                        <span
+                                          className={`w-6 h-6 flex items-center justify-center rounded-md border
+                                            ${item.checked ? 'bg-[#6C63FF] border-[#00E0FF] text-white' : 'bg-[rgba(20,25,40,0.7)] border-[#6C63FF]'}
+                                          `}
                                         >
+                                          {item.checked ? <CheckCircle2 className="h-5 w-5" /> : <span />}
+                                        </span>
+                                        <div className="flex-1 space-y-2">
+                                          <div className="flex items-center gap-2">
+                                            <span
+                                              className={`text-sm font-medium ${item.checked ? 'line-through text-[#6C63FF]' : 'text-[#E5E7EB]'}`}
+                                            >
+                                              {item.text}
+                                            </span>
+                                            {item.tooltip && (
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <span className="text-xs text-[#00E0FF] underline decoration-dotted cursor-help">info</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent
+                                                  side="top"
+                                                  align="start"
+                                                  className="max-w-xs bg-[rgba(20,25,40,0.9)] text-[#E5E7EB] border-[#6C63FF] text-xs"
+                                                >
+                                                  {item.tooltip}
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
                                           <Textarea
-                                            placeholder="Add investigation notes, findings, or remediation steps…"
+                                            placeholder="Add notes, findings, or remediation steps…"
                                             defaultValue={item.note}
                                             onBlur={(e) =>
                                               e.currentTarget.value !== item.note &&
                                               patchItem(checklist.scope, cat.name, item.text, {
                                                 note: e.currentTarget.value,
                                                 checked: item.checked,
-
                                               })
                                             }
-                                            className="bg-white/10 border-white/30 text-white placeholder:text-white/40 resize-none focus:border-blue-400/50 focus:ring-blue-400/20 transition-all duration-200"
+                                            className="bg-[rgba(20,25,40,0.7)] border-[#2D3748] text-[#E5E7EB] placeholder:text-[#6B7280] resize-none focus:border-[#6C63FF] focus:ring-0 rounded-lg text-sm font-medium px-3 py-2"
                                             rows={2}
+                                            aria-label={`Notes for ${item.text}`}
                                           />
-                                        </motion.div>
-                                      </div>
-                                    </div>
+                                        </div>
+                                      </motion.div>
+                                    ))}
                                   </motion.div>
-                                ))}
+                                )}
                               </AnimatePresence>
-                            </div>
-                          </motion.div>
-                        ))}
+                            </motion.div>
+                          );
+                        })}
                       </AnimatePresence>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </motion.div>
-
-          
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }} 
-              animate={{ opacity: 1, x: 0 }} 
-              transition={{ delay: 0.5 }}
-              className="space-y-6"
-            >
-             
-              <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 backdrop-blur-lg shadow-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <motion.div
-                      animate={{ rotate: aiSuggestions.length > 0 ? 360 : 0 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <Lightbulb className="h-5 w-5 text-yellow-400" />
-                    </motion.div>
+            </div>
+            <aside className="w-full lg:w-[480px] flex flex-col gap-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-[#2D3748] bg-[rgba(20,25,40,0.7)] backdrop-blur-md shadow-lg p-6 relative
+                  before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-[#E5E7EB] text-lg font-semibold tracking-tight">
+                    <Lightbulb className="h-5 w-5" />
                     AI Suggestions
                   </CardTitle>
+                  <div className="absolute top-6 right-6">
+                    <Button
+                      onClick={fetchSuggestions}
+                      disabled={!checklist || suggestLoading}
+                      size="sm"
+                      className="bg-gradient-to-r from-[#6C63FF] to-[#00E0FF] text-[#E5E7EB] rounded-full text-sm font-semibold shadow-md border-0 btn-shimmer transition-all duration-300 relative
+                        before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#00E0FF44] before:to-[#6C63FF44] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                      aria-label="Fetch AI suggestions"
+                    >
+                      {suggestLoading ? (
+                        <span className="animate-spin mr-2 h-4 w-4 border-2 border-[#E5E7EB] border-t-[#6C63FF] rounded-full" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      {suggestLoading ? 'Analyzing…' : 'Get Ideas'}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {!aiSuggestions.length && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-center py-8"
-                    >
-                      <Brain className="h-12 w-12 text-white/30 mx-auto mb-3" />
-                      <p className="text-sm text-white/70 mb-4">
-                        Get AI-powered suggestions for additional security checks and quick fixes
+                    <div className="text-center py-6">
+                      <Brain className="h-10 w-10 text-[#A1A1AA] mx-auto mb-2" />
+                      <p className="text-xs text-[#A1A1AA] tracking-tight">
+                        Get AI-powered suggestions for additional security checks
                       </p>
-                      <Button 
-                        onClick={fetchSuggestions} 
-                        disabled={!checklist || suggestLoading}
-                        size="sm"
-                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-lg"
-                      >
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Get Ideas
-                      </Button>
-                    </motion.div>
+                    </div>
                   )}
-                  
                   <div className="space-y-4">
-                    <AnimatePresence>
-                      {aiSuggestions.map((cat, i) => (
-                        <motion.div
-                          key={`${cat.name}-${i}`}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="rounded-lg border border-white/20 bg-white/10 p-3 shadow-md"
-                        >
-                          <div className="mb-3 font-medium text-white text-sm">{cat.name}</div>
-                          <ul className="space-y-2">
-                            {(cat.items as Array<{ text: string; solution?: string }>).map((it, idx) => (
-                              <motion.li 
-                                key={idx} 
-                                initial={{ opacity: 0, x: -5 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.1 + idx * 0.05 }}
-                                className="rounded-md bg-black/30 p-3 border border-white/10"
-                              >
-                                <div className="text-xs text-white/90 leading-relaxed">{it.text}</div>
-                                {it.solution && (
-                                  <div className="mt-2 text-xs text-green-400/80 bg-green-500/20 rounded px-2 py-1">
-                                    <span className="font-medium">Quick Fix:</span> {it.solution}
-                                  </div>
-                                )}
-                              </motion.li>
-                            ))}
-                          </ul>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
+                    {aiSuggestions.map((cat, i) => (
+                      <div
+                        key={`${cat.name}-${i}`}
+                        className="rounded-lg border border-[#2D3748] bg-[rgba(20,25,40,0.7)] p-4 relative
+                          before:absolute before:top-0 before:left-0 before:w-full before:h-[1px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                      >
+                        <div className="mb-2 font-semibold text-[#00E0FF] text-sm tracking-tight">{cat.name}</div>
+                        <ul className="space-y-2">
+                          {(cat.items as Array<{ text: string; solution?: string }>).map((it, idx) => (
+                            <li key={idx} className="rounded-lg bg-[rgba(10,12,20,0.9)] p-3 border border-[#2D3748]">
+                              <div className="text-xs text-[#E5E7EB] tracking-tight">{it.text}</div>
+                              {it.solution && (
+                                <div className="mt-1 text-xs text-[#00E0FF] bg-[#00E0FF]/10 rounded px-2 py-1">
+                                  <span className="font-medium">Quick Fix:</span> {it.solution}
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 backdrop-blur-lg shadow-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <FileText className="h-5 w-5 text-blue-400" />
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-[#2D3748] bg-[rgba(20,25,40,0.7)] backdrop-blur-md shadow-lg p-6 relative
+                  before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#6C63FF] before:to-[#00E0FF] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-[#E5E7EB] text-lg font-semibold tracking-tight">
+                    <FileText className="h-5 w-5" />
                     Export Results
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-white/70 mb-4">
-                    Export your security testing results and findings
-                  </p>
+                  <p className="text-xs text-[#A1A1AA] tracking-tight">Export your security testing results</p>
                   <div className="grid gap-2">
-                    {['Markdown', 'CSV', 'JSON', 'PDF'].map((format, index) => (
-                      <motion.div
+                    {[
+                      { format: 'Markdown', handler: exportMarkdown },
+                      { format: 'CSV', handler: exportCSV },
+                      { format: 'JSON', handler: exportJSON },
+                      { format: 'PDF', handler: exportPDF },
+                    ].map(({ format, handler }) => (
+                      <Button
                         key={format}
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.6 + index * 0.05 }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        variant="outline"
+                        size="sm"
+                        onClick={handler}
+                        disabled={!checklist || exportLoading === format}
+                        className="w-full justify-start border border-[#2D3748] text-[#E5E7EB] bg-[rgba(20,25,40,0.7)] h-9 text-sm font-medium rounded-lg relative
+                          before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#00E0FF44] before:to-[#6C63FF44] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                        aria-label={`Export checklist as ${format}`}
                       >
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled 
-                          className="w-full justify-start border-white/30 text-white/50 hover:bg-white/10 hover:border-white/40 bg-white/5 h-10 transition-all duration-200"
-                        >
+                        {exportLoading === format ? (
+                          <span className="animate-spin mr-2 h-4 w-4 border-2 border-[#E5E7EB] border-t-[#6C63FF] rounded-full" />
+                        ) : (
                           <Download className="mr-2 h-4 w-4" />
-                          {format}
-                        </Button>
-                      </motion.div>
+                        )}
+                        {format}
+                      </Button>
                     ))}
                   </div>
-                  <p className="text-xs text-white/50 mt-3">Coming soon...</p>
                 </CardContent>
-              </Card>
-            </motion.div>
+              </motion.div>
+            </aside>
           </section>
         </main>
       </div>
