@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
+import Image from 'next/image';
 
 const ROUTES = {
   CREATE_CHECKLIST: '/api/checklists/create',
@@ -85,7 +86,7 @@ export default function DashboardPage() {
   const [selectedScope, setSelectedScope] = useState<string>('Web');
   const [checklist, setChecklist] = useState<ChecklistDoc | null>(null);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<ChecklistCategory[]>([]);
@@ -297,7 +298,8 @@ export default function DashboardPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Markdown exported successfully!');
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to export Markdown', error);
       toast.error('Failed to export Markdown');
     } finally {
       setExportLoading(null);
@@ -324,7 +326,8 @@ export default function DashboardPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('CSV exported successfully!');
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to export CSV', error);
       toast.error('Failed to export CSV');
     } finally {
       setExportLoading(null);
@@ -344,7 +347,8 @@ export default function DashboardPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('JSON exported successfully!');
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to export JSON', error);
       toast.error('Failed to export JSON');
     } finally {
       setExportLoading(null);
@@ -386,7 +390,8 @@ export default function DashboardPage() {
       });
       doc.save(`${selectedScope}_checklist.pdf`);
       toast.success('PDF exported successfully!');
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to export PDF', error);
       toast.error('Failed to export PDF');
     } finally {
       setExportLoading(null);
@@ -457,7 +462,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-[#A1A1AA] tracking-tight">Hi, {session?.user?.name?.split(' ')[0] || 'User'}</span>
-              <img
+              <Image
                 src={session?.user?.image || '/avatar.svg'}
                 alt="User avatar"
                 className="h-8 w-8 rounded-full border-2 border-[#6C63FF] shadow-md hover:shadow-[0_0_10px_rgba(108,99,255,0.5)] transition-all duration-300"
