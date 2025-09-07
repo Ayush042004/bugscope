@@ -16,42 +16,23 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { signIn } from 'next-auth/react';
 
 function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
   const router = useRouter();
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-    }
+    defaultValues: { username: "", email: "", password: "" }
   });
 
   const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
     setIsSubmitting(true);
-
     try {
       const response = await axios.post<ApiResponse>('/api/sign-up', data);
       toast.success(response.data.message);
-      const loginRes = await signIn('credentials', {
-        redirect: false,
-        identifier: data.email,
-        password: data.password,
-      });
-
-    if (loginRes?.ok) {
-        router.replace('/dashboard');
-      } else {
-        toast.error("Sign-up successful, but auto-login failed. Please sign in.");
-        router.replace('/sign-in');
-      }
-      
+      router.replace('/dashboard');
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       const errorMessage = axiosError.response?.data.message;
@@ -63,57 +44,38 @@ function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-20 relative">
-      {/* Background Animation */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#152316] rounded-full blur-3xl opacity-70"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#0f1711] rounded-full blur-3xl opacity-70"></div>
       </div>
 
       <div className="relative w-full max-w-md z-10">
-        {/* Back to Home */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="mb-8"
-        >
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
           <Link href="/">
-            <Button variant="ghost" className="text-white hover:bg-blend-darken p-0">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+            <Button variant="ghost" className="text-[#b6f09c] hover:bg-[#152316] p-0">
+              <ArrowLeft className="h-4 w-4 mr-2 text-[#87cf5f]" />
               Back to Home
             </Button>
           </Link>
         </motion.div>
 
-        {/* Auth Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
+        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <Card className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl shadow-xl">
             <CardHeader className="text-center pb-8">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="flex justify-center mb-4"
-              >
-                <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl">
-                  <Shield className="h-8 w-8 text-white" />
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="flex justify-center mb-4">
+                <div className="p-4 bg-[#152316] rounded-2xl shadow-lg ring-1 ring-[#2d4a25]/60">
+                  <Shield className="h-8 w-8 text-[#87cf5f]" />
                 </div>
               </motion.div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">
                 Join BugScope
               </CardTitle>
-              <p className="text-gray-400 mt-2">
-                Sign up to start your journey with BugScope
-              </p>
+              <p className="text-gray-400 mt-2">Sign up to start your journey with BugScope</p>
             </CardHeader>
 
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Username */}
                   <FormField
                     control={form.control}
                     name="username"
@@ -122,11 +84,11 @@ function SignUpPage() {
                         <FormLabel className="text-white">Username</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <User className="absolute left-3 top-3 h-4 w-4 text-[#87cf5f]" />
                             <Input
                               placeholder="Choose a unique username"
                               {...field}
-                              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-[#87cf5f] focus-visible:border-[#2d4a25]/60"
                             />
                           </div>
                         </FormControl>
@@ -135,7 +97,6 @@ function SignUpPage() {
                     )}
                   />
 
-                  {/* Email */}
                   <FormField
                     control={form.control}
                     name="email"
@@ -144,11 +105,11 @@ function SignUpPage() {
                         <FormLabel className="text-white">Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-[#87cf5f]" />
                             <Input
                               placeholder="Enter your email"
                               {...field}
-                              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-[#87cf5f] focus-visible:border-[#2d4a25]/60"
                             />
                           </div>
                         </FormControl>
@@ -157,7 +118,6 @@ function SignUpPage() {
                     )}
                   />
 
-                  {/* Password */}
                   <FormField
                     control={form.control}
                     name="password"
@@ -166,17 +126,17 @@ function SignUpPage() {
                         <FormLabel className="text-white">Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-[#87cf5f]" />
                             <Input
                               type={showPassword ? "text" : "password"}
                               placeholder="Create a secure password"
                               {...field}
-                              className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                              className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-[#87cf5f] focus-visible:border-[#2d4a25]/60"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-white"
+                              className="absolute right-3 top-3 text-[#87cf5f] hover:opacity-80"
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
@@ -187,19 +147,14 @@ function SignUpPage() {
                     )}
                   />
 
-                  {/* Submit */}
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
+                      className="w-full bg-gradient-to-r from-[#8bd46a] to-[#2db08d] hover:from-[#79c85c] hover:to-[#249e7f] text-white font-semibold py-3 rounded-xl"
                     >
                       {isSubmitting ? (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                        />
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
                       ) : (
                         'Create Account'
                       )}
@@ -208,11 +163,10 @@ function SignUpPage() {
                 </form>
               </Form>
 
-              {/* Footer */}
               <div className="mt-6 text-center">
                 <p className="text-gray-400 text-sm">
                   Already a member?{' '}
-                  <Link href="/sign-in" className="text-blue-400 hover:text-blue-300 font-semibold">
+                  <Link href="/sign-in" className="text-[#b6f09c] hover:text-[#a0e67f] font-semibold">
                     Sign in
                   </Link>
                 </p>
