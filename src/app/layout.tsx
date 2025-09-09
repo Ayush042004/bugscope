@@ -18,6 +18,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BugScope",
   description: "Your AI-powered security testing platform",
+  openGraph: {
+    title: "BugScope",
+    description: "Your AI-powered security testing platform",
+    url: "https://bugscope-gamma.vercel.app/",
+    type: "website",
+    images: [
+      {
+        url: "/bug.svg",
+        width: 1200,
+        height: 630,
+        alt: "BugScope preview",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
