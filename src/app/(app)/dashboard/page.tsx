@@ -43,7 +43,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
-import Image from 'next/image';
+
 
 const ROUTES = {
   CREATE_CHECKLIST: '/api/checklists/create',
@@ -457,11 +457,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-zinc-400 tracking-tight">Hi, {session?.user?.name?.split(' ')[0] || 'User'}</span>
-              <Image
-                src={session?.user?.image || '/avatar.svg'}
-                alt="User avatar"
-                className="h-8 w-8 rounded-full border-2 border-[#87cf5f] shadow-md"
-              />
+             
             </div>
           </div>
         </header>
@@ -650,22 +646,34 @@ export default function DashboardPage() {
                                         key={`${cat.name}-${item.text}`}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className={`rounded-xl border px-5 py-4 flex gap-4 items-center cursor-pointer relative
+                                        className={`rounded-xl border px-5 py-4 flex gap-4 items-center relative
                                           ${item.checked ? 'bg-gradient-to-r from-[#8bd46a]/20 to-[#2db08d]/10 border-[#2db08d]' : 'bg-[#0b1015] border-[#1f2d20]'}
                                           before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-2/3 before:h-[1px] before:bg-gradient-to-r before:from-[#8bd46a] before:to-[#2db08d] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
                                         `}
-                                        onClick={() =>
-                                          patchItem(checklist.scope, cat.name, item.text, {
-                                            checked: !item.checked,
-                                            note: item.note,
-                                          })
-                                        }
                                         aria-label={`Toggle ${item.text} checklist item`}
                                       >
                                         <span
-                                          className={`w-6 h-6 flex items-center justify-center rounded-md border
-                                            ${item.checked ? 'bg-[#2db08d] border-[#87cf5f] text-white' : 'bg-[#0b1015] border-[#2d4a25]'}
-                                          `}
+                                          className={`w-6 h-6 flex items-center justify-center rounded-md border ${item.checked ? 'bg-[#2db08d] border-[#87cf5f] text-white' : 'bg-[#0b1015] border-[#2d4a25]'} cursor-pointer`}
+                                          role="checkbox"
+                                          aria-checked={item.checked}
+                                          tabIndex={0}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            patchItem(checklist.scope, cat.name, item.text, {
+                                              checked: !item.checked,
+                                              note: item.note,
+                                            });
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === ' ' || e.key === 'Enter') {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              patchItem(checklist.scope, cat.name, item.text, {
+                                                checked: !item.checked,
+                                                note: item.note,
+                                              });
+                                            }
+                                          }}
                                         >
                                           {item.checked ? <CheckCircle2 className="h-5 w-5" /> : <span />}
                                         </span>
