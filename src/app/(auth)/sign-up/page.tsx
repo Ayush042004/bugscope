@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 
 function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,11 +62,9 @@ function SignUpPage() {
 
         <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <Card className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl shadow-xl">
-            <CardHeader className="text-center pb-8">
+            <CardHeader className="text-center pb-5">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="flex justify-center mb-4">
-                <div className="p-4 bg-[#152316] rounded-2xl shadow-lg ring-1 ring-[#2d4a25]/60">
-                  <Shield className="h-8 w-8 text-[#87cf5f]" />
-                </div>
+                <Image src="/bugscope.svg" alt="BugScope" width={100} height={100} />
               </motion.div>
               <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">
                 Join BugScope

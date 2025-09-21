@@ -516,7 +516,7 @@ export default function LandingPage() {
       <footer className={`border-t ${BORDER} py-10`}>
         <Container className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center gap-3">
-          <Image className=" " src="/bugscope.svg" alt="BugScope" width={84} height={84} />
+          <Image className=" " src="/bugscope.svg" alt="BugScope" width={100} height={100} />
             <span className="text-xl font-semibold text-white">BugScope</span>
           </div>
           <p className={`text-sm ${TEXT_MUTED}`}>

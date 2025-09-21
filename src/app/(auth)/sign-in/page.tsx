@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 
@@ -55,8 +55,8 @@ function Page() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#0f1711] rounded-full blur-3xl opacity-70"></div>
       </div>
 
-      <div className="relative w-full max-w-md z-10">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+      <div className="relative w-full max-w-md z-10 mt-10 mb-10">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-9 ">
           <Link href="/">
             <Button variant="ghost" className="text-[#b6f09c] hover:bg-[#152316] p-0">
               <ArrowLeft className="h-4 w-4 mr-2 text-[#87cf5f]" />
@@ -68,9 +68,7 @@ function Page() {
         <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="flex justify-center mb-4">
-              <div className="p-4 bg-[#152316] rounded-2xl shadow-lg ring-1 ring-[#2d4a25]/60">
-                <Shield className="h-8 w-8 text-[#87cf5f]" />
-              </div>
+            <Image src="/bugscope.svg" alt="BugScope" width={100} height={100} />
             </motion.div>
 
             <h1 className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent text-center">
