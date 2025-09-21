@@ -25,6 +25,7 @@ import {
   Server,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 
 const features = [
@@ -515,9 +516,7 @@ export default function LandingPage() {
       <footer className={`border-t ${BORDER} py-10`}>
         <Container className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center gap-3">
-            <span className={`rounded-lg p-2 ${ACCENT_RING} ${ACCENT_BG}`}>
-              <Shield className={`h-5 w-5 ${ACCENT}`} />
-            </span>
+          <Image className=" " src="/bugscope.svg" alt="BugScope" width={84} height={84} />
             <span className="text-xl font-semibold text-white">BugScope</span>
           </div>
           <p className={`text-sm ${TEXT_MUTED}`}>

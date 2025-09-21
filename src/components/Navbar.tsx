@@ -2,11 +2,12 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Shield, UserIcon, Settings, LogOut, LogIn } from "lucide-react";
+import { UserIcon, Settings, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { User } from "next-auth";
 import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -18,12 +19,12 @@ export default function Navbar() {
       animate={{ y: 0 }}
       className="fixed top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/10"
     >
-      <div className="container mx-auto px-6 py-3">
+      <div className="container mx-auto px-6 ">
         <div className="flex items-center justify-between">
           <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.05 }}>
-            <div className="p-2 rounded-xl bg-[#152316] ring-1 ring-[#2d4a25]/60 shadow-lg">
-              <Shield className="h-6 w-6 text-[#87cf5f]" />
-            </div>
+         
+              <Image className=" " src="/bugscope.svg" alt="BugScope" width={84} height={84} />
+            
             <span className="text-2xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">
               BugScope
             </span>
