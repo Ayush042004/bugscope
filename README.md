@@ -38,10 +38,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ---
 
 
-
-### Monitoring Ideas
-- Add `/api/health` with header echo to verify security headers in uptime checks.
-- Periodic job to diff dependency list + alert on new critical CVEs.
-
----
-
