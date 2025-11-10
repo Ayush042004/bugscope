@@ -4,6 +4,7 @@ import dbConnect from "@/lib/dbConnect";
 import ChecklistModel from "@/model/Checklists";
 import { NextRequest } from "next/server";
 import { User } from "next-auth";
+import { ScopeParamSchema } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest, 
@@ -22,12 +23,13 @@ export async function GET(
   
   const userId = user._id;
   const { scope } = await context.params;
+  const parsed = ScopeParamSchema.safeParse({ scope });
+  if(!parsed.success){
+    return Response.json({success:false,message: parsed.error.flatten()},{status:400});
+  }
   
   try {
-    const checklist = await ChecklistModel.findOne({
-      userId,
-      scope: scope
-    });
+    const checklist = await ChecklistModel.findOne({ userId, scope: parsed.data.scope });
 
     if (!checklist) {
       return Response.json(

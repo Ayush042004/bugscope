@@ -15,6 +15,44 @@ interface CustomUser {
 }
 
 
+// --- Simple in-memory login attempt tracker (process lifetime only) ---
+const loginAttempts: Map<string, { count: number; firstAttempt: number }> = new Map();
+const MAX_ATTEMPTS = 5; // attempts per window
+const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+// Precomputed dummy hash to normalize timing for invalid users (avoid user enumeration)
+const DUMMY_HASH = bcrypt.hashSync('invalid-password-baseline', 10);
+
+function registerFailedAttempt(key: string) {
+  const now = Date.now();
+  const rec = loginAttempts.get(key);
+  if (!rec) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now });
+    return;
+  }
+  // Reset window if expired
+  if (now - rec.firstAttempt > WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now });
+  } else {
+    rec.count += 1;
+  }
+}
+
+function isRateLimited(key: string) {
+  const rec = loginAttempts.get(key);
+  if (!rec) return false;
+  const now = Date.now();
+  if (now - rec.firstAttempt > WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return rec.count >= MAX_ATTEMPTS;
+}
+
+function resetAttempts(key: string) {
+  loginAttempts.delete(key);
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -25,25 +63,50 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.identifier || !credentials?.password) {
-          return null;
+        // Runtime type guards (defensive): ensure primitives only
+        if (
+          !credentials ||
+          typeof credentials.identifier !== 'string' ||
+          typeof credentials.password !== 'string' ||
+          credentials.identifier.length === 0 ||
+          credentials.password.length === 0
+        ) {
+          throw new Error('Invalid credentials');
         }
+        const identifier = credentials.identifier.trim().toLowerCase();
+        const attemptKey = `cred:${identifier}`;
+        if (isRateLimited(attemptKey)) {
+          throw new Error('Too many attempts. Please wait and try again.');
+        }
+
         await dbConnect();
         try {
           const user = await UserModel.findOne({
             $or: [
-              { email: credentials.identifier },
-              { username: credentials.identifier },
+              { email: identifier },
+              { username: identifier },
             ],
           });
+
+          // If user not found, still perform a bcrypt compare against dummy hash to equalize timing
           if (!user) {
-            throw new Error('No user found with this email');
+            await bcrypt.compare(credentials.password, DUMMY_HASH);
+            registerFailedAttempt(attemptKey);
+            throw new Error('Invalid credentials');
           }
-          const isPasswordCorrect = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-          if (isPasswordCorrect) {
+
+            const isPasswordCorrect = await bcrypt.compare(
+              credentials.password,
+              user.password
+            );
+
+            if (!isPasswordCorrect) {
+              registerFailedAttempt(attemptKey);
+              throw new Error('Invalid credentials');
+            }
+
+            // success
+            resetAttempts(attemptKey);
             const userId = (user._id as { toString: () => string }).toString();
             return {
               id: userId,
@@ -52,12 +115,9 @@ export const authOptions: NextAuthOptions = {
               email: user.email,
               image: user.avatar || null,
             };
-          } else {
-            throw new Error('Incorrect password');
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-          throw new Error(errorMessage);
+        } catch {
+          // All errors map to generic message (except rate limit handled earlier)
+          throw new Error('Invalid credentials');
         }
       },
     }),
@@ -74,10 +134,12 @@ async jwt({ token, user, account }) {
     let dbUser = await UserModel.findOne({ email: user.email });
 
     if (!dbUser) {
+      // Hash a sentinel password instead of storing plaintext marker
+      const sentinelHash = await bcrypt.hash('GOOGLE_OAUTH_SENTINEL', 10);
       dbUser = await UserModel.create({
         email: user?.email,
         username: user?.name || (user.email ? user.email.split('@')[0] : ''),
-        password: 'GOOGLE_OAUTH',
+        password: sentinelHash,
       });
     }
 

@@ -4,7 +4,7 @@ import { motion, useMotionValue, useTransform, useScroll, useSpring } from 'moti
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import Hero from '@/components/landing/Hero';
 import {
   Shield,
   Globe,
@@ -14,7 +14,6 @@ import {
   Brain,
   Network,
   ArrowRight,
-  Star,
   Users,
   Target,
   Bug,
@@ -233,29 +232,7 @@ function Magnetic({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TiltCard({ children }: { children: React.ReactNode }) {
-  const rx = useMotionValue(0);
-  const ry = useMotionValue(0);
-  const rX = useTransform(rx, [-30, 30], [8, -8]);
-  const rY = useTransform(ry, [-30, 30], [-8, 8]);
-  return (
-    <motion.div
-      onMouseMove={(e) => {
-        const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-        ry.set(((e.clientX - r.left) / r.width) * 60 - 30);
-        rx.set(((e.clientY - r.top) / r.height) * 60 - 30);
-      }}
-      onMouseLeave={() => {
-        rx.set(0);
-        ry.set(0);
-      }}
-      style={{ rotateX: rX, rotateY: rY, transformStyle: 'preserve-3d', perspective: 800 }}
-      className="will-change-transform"
-    >
-      {children}
-    </motion.div>
-  );
-}
+// Note: TiltCard removed in favor of a simpler hero component
 
 // Parallax layers bound to scroll
 function ParallaxScene() {
@@ -315,62 +292,11 @@ export default function LandingPage() {
       <AnimatedGrid />
       <Spotlight />
 
-      {/* HERO — parallax background */}
-      <section className="relative pt-28">
+      {/* HERO (refactored into separate component) */}
+      <section className="relative">
         <ParallaxScene />
         <Container>
-          <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-[1.2fr_1fr]">
-            <div>
-              <Badge className={`mb-6 border ${BORDER} ${ELEVATION} ${TEXT_MUTED}`}>
-                <Star className="mr-2 h-4 w-4" />
-                Empowering a Growing Security Community
-              </Badge>
-              <h1 className="text-balance text-5xl font-extrabold leading-[1.1] tracking-tight md:text-7xl [text-shadow:0_0_30px_rgba(163,230,53,.15)]">
-                Next-Gen Security
-                <br />
-                Testing Platform
-              </h1>
-              <p className={`mt-6 max-w-2xl text-lg leading-relaxed ${TEXT_MUTED}`}>
-                Revolutionize your bug bounty hunting with AI-powered suggestions, comprehensive checklists,
-                and advanced analytics. Find vulnerabilities faster than ever before.
-              </p>
-              <div className="mt-10 flex flex-wrap items-center gap-4">
-                <Magnetic>
-                  <Link href="/sign-in">
-                    <Button size="lg" className={`rounded-2xl px-9 py-6 text-lg shadow-2xl ${BTN}`}>
-                      Start Testing Now
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
-                </Magnetic>
-                <Link href="#features" className={`text-sm ${TEXT_MUTED} hover:text-white`}>
-                  Explore Features
-                </Link>
-              </div>
-            </div>
-
-            {/* Right — glossy 3D bento */}
-            <div className="mx-auto w-full max-w-xl">
-              <TiltCard>
-                <div className={`rounded-3xl border ${BORDER} ${ELEVATION} p-6 shadow-[0_20px_60px_-20px_rgba(0,0,0,.6)]`}>
-                  <div className="grid grid-cols-3 gap-4">
-                    {features.map((f) => (
-                      <div
-                        key={f.title}
-                        className={`group relative rounded-2xl border ${BORDER} ${SURFACE} p-4 transition-transform hover:-translate-y-[3px]`}
-                      >
-                        <motion.div whileHover={{ scale: 1.06 }} className={`mb-3 inline-flex rounded-xl p-3 ${ACCENT_RING} ${ACCENT_BG}`}>
-                          <f.icon className={`h-6 w-6 ${ACCENT}`} />
-                        </motion.div>
-                        <div className="h-2 w-20 rounded bg-white/15" />
-                        <div className="mt-2 h-2 w-14 rounded bg-white/10" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </TiltCard>
-            </div>
-          </div>
+          <Hero />
         </Container>
       </section>
 
@@ -516,8 +442,15 @@ export default function LandingPage() {
       <footer className={`border-t ${BORDER} py-10`}>
         <Container className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center gap-3">
-          <Image className=" " src="/bugscope.svg" alt="BugScope" width={100} height={100} />
-            <span className="text-xl font-semibold text-white">BugScope</span>
+            <Image
+              src="/bugscope.svg"
+              alt="BugScope"
+              width={56}
+              height={56}
+              className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0"
+              style={{ color: 'transparent' }}
+            />
+            <span className="text-2xl sm:text-3xl font-semibold text-white">BugScope</span>
           </div>
           <p className={`text-sm ${TEXT_MUTED}`}>
             © 2025 BugScope. All rights reserved. Securing the digital world, one bug at a time.

@@ -1,23 +1,21 @@
 import dbConnect from "@/lib/dbConnect";
 import { NextRequest } from "next/server";
 import TemplateModel from "@/model/checklistTemplate";
+import { ScopeParamSchema } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest, 
   { params }: { params: Promise<{ scope: string }> }
 ) {
   const { scope } = await params;
-
-  if (!scope || typeof scope !== "string") {
-    return Response.json(
-      { success: false, message: "Scope is required as a query parameter" }, 
-      { status: 400 }
-    );
+  const parsed = ScopeParamSchema.safeParse({ scope });
+  if(!parsed.success){
+    return Response.json({success:false,message: parsed.error.flatten()},{status:400});
   }
   
   try {
     await dbConnect();
-    const template = await TemplateModel.findOne({ scope });
+  const template = await TemplateModel.findOne({ scope: parsed.data.scope });
     
     if (!template) {
       return Response.json(

@@ -20,7 +20,8 @@ async function dbConnect(): Promise<void> {
         
     } catch (error) {
         console.error('Database connection failed:', error);
-        process.exit(1);
+        // Avoid killing the serverless process; let the caller handle the error
+        throw error;
     }
 }
 

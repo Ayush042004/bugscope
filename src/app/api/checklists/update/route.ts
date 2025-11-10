@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 import { authOptions } from "../../auth/[...nextauth]/options";
 import { getServerSession } from "next-auth";
 import { User } from "next-auth";
+import { ChecklistUpdateSchema } from "@/lib/validation";
+import sanitize from "mongo-sanitize";
 
 export async function PATCH(request:NextRequest){
     await dbConnect();
@@ -16,26 +18,31 @@ export async function PATCH(request:NextRequest){
       { status: 401 }
     );}
     const userId = user._id;
-    
-  const { scope, categoryName, itemText, checked, note } = await request.json();
+    const body = await request.json();
+    const parsed = ChecklistUpdateSchema.safeParse(body);
+    if(!parsed.success){
+      return Response.json({success:false,message: parsed.error.flatten()},{status:400});
+    }
+    const { scope, categoryName, itemText, checked, note } = parsed.data;
   try {
-    const checklist = await ChecklistModel.findOne({
-        userId,
-        scope
-    })
-    if(!checklist) return Response.json({success: false,message:"Error getting checlists of user"},{status: 404})
-      const category = checklist.categories.find(cat => cat.name === categoryName);
-      const item = category?.items.find(it => it.text === itemText);
+    const checklist = await ChecklistModel.findOne({ userId, scope: sanitize(scope) });
+    if(!checklist) return Response.json({success: false,message:"Checklist not found"},{status: 404});
 
-      if(item){
-        item.checked = checked;
-        item.note = note;
-        await checklist.save();
-      }
-      return Response.json({success:true,message: "user checlist updated"},{status: 200})
+    const category = checklist.categories.find(cat => cat.name === categoryName);
+    if(!category) return Response.json({success:false,message:"Category not found"},{status:404});
+
+    const item = category.items.find(it => it.text === itemText);
+    if(!item) return Response.json({success:false,message:"Item not found"},{status:404});
+
+    item.checked = checked;
+    if(typeof note === 'string') item.note = note;
+    await checklist.save();
+
+    return Response.json({success:true,message: "Checklist updated"},{status: 200})
 
   } catch (error) {
-    console.error("Error updating user checlist",error)
+    console.error("Error updating user checklist",error);
+    return Response.json({success:false,message:"Server error"},{status:500});
   }
 
 }

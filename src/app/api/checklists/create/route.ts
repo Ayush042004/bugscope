@@ -5,6 +5,8 @@ import ChecklistModel from "@/model/Checklists";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { User } from "next-auth";
+import { ChecklistCreateSchema } from "@/lib/validation";
+import sanitize from "mongo-sanitize";
 
 
 export async function POST(request:NextRequest){
@@ -18,10 +20,18 @@ export async function POST(request:NextRequest){
       { status: 401 }
     );}
     const userId = user._id;
-    const {scope} = await request.json();
+    const body = await request.json();
+    const parsed = ChecklistCreateSchema.safeParse(body);
+    if(!parsed.success){
+      return Response.json({success:false,message: parsed.error.flatten()},{status:400});
+    }
+    const scope = sanitize(parsed.data.scope);
     const template = await TemplateModel.findOne({scope});
 
-try {
+ try {
+     if(!template){
+       return Response.json({success:false,message:"Template not found for provided scope"},{status:404});
+     }
      const checklist = new ChecklistModel({
        userId,
        scope,
@@ -43,8 +53,7 @@ try {
     
 } catch (error) {
     console.error("Error in user checlists",error);
-    Response.json({success: false,message:"Error sending checlists in backend"},{status: 500})
-    
+    return Response.json({success: false,message:"Error creating checklist"},{status: 500})
 }
   
 }  

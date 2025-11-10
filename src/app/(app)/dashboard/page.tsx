@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -14,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import {
-  Shield,
   Lightbulb,
   FileText,
   Download,
@@ -43,6 +41,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
+import Image from 'next/image';
 
 
 const ROUTES = {
@@ -72,6 +71,27 @@ type ChecklistDoc = {
   categories: ChecklistCategory[];
 };
 
+// AI response typing
+type AIProgressCategory = { name: string; percent: number };
+type AIProgressSummary = {
+  overallPercent: number;
+  completed: number;
+  total: number;
+  notableGaps?: string[];
+  categories?: AIProgressCategory[];
+};
+type AINextStep = { step: string; why?: string; impact?: 'high'|'medium'|'low'; confidence?: number };
+type AIMissingCritical = { text: string; reason?: string; risk?: 'critical'|'high'|'medium'|'low' };
+type AISuggestionItem = { text: string; solution?: string; impact?: 'high'|'medium'|'low' };
+type AISuggestionCategory = { name: string; items: AISuggestionItem[] };
+type AIResponsePayload = {
+  version?: string;
+  progressSummary?: AIProgressSummary;
+  nextSteps?: AINextStep[];
+  missingCritical?: AIMissingCritical[];
+  suggestions?: AISuggestionCategory[];
+};
+
 const SCOPES = [
   { id: 'Web', name: 'Web App', icon: Globe },
   { id: 'api', name: 'API', icon: Network },
@@ -91,9 +111,14 @@ export default function DashboardPage() {
   const [, setSaving] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState<string | null>(null);
-  const [aiSuggestions, setAiSuggestions] = useState<ChecklistCategory[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestionCategory[]>([]);
+  const [progressSummary, setProgressSummary] = useState<AIProgressSummary | null>(null);
+  const [nextSteps, setNextSteps] = useState<AINextStep[]>([]);
+  const [missingCritical, setMissingCritical] = useState<AIMissingCritical[]>([]);
   const [search, setSearch] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  // Removed advanced AI tuning controls (temperature, confidence filter, sort) per user request.
+  const [aiVersion, setAiVersion] = useState<string | null>(null);
 
   const loadChecklist = useCallback(async (scope: string) => {
     setLoadingChecklist(true);
@@ -216,18 +241,24 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           scope: checklist.scope,
-          categories: checklist.categories.map((c) => ({
+          categories: checklist.categories.map(c => ({
             name: c.name,
-            items: c.items.map((i) => ({ text: i.text, tooltip: i.tooltip })),
+            items: c.items.map(i => ({ text: i.text, tooltip: i.tooltip, checked: i.checked }))
           })),
+          // options removed
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.data?.suggestions) {
-        throw new Error(data?.message || 'No suggestions returned');
+      if (!res.ok || !data?.data) {
+        throw new Error(data?.message || 'No AI data returned');
       }
-      setAiSuggestions(data.data.suggestions);
-      toast.success('AI suggestions loaded!', { icon: '🤖' });
+    const payload: AIResponsePayload = data.data as AIResponsePayload;
+    if (Array.isArray(payload.suggestions)) setAiSuggestions(payload.suggestions); else setAiSuggestions([]);
+    if (typeof payload.version === 'string') setAiVersion(payload.version);
+    setProgressSummary(payload.progressSummary || null);
+    setNextSteps(Array.isArray(payload.nextSteps) ? payload.nextSteps : []);
+    setMissingCritical(Array.isArray(payload.missingCritical) ? payload.missingCritical : []);
+      toast.success('AI analysis ready!', { icon: '🤖' });
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : 'Could not fetch suggestions';
       toast.error(errorMessage);
@@ -422,7 +453,14 @@ export default function DashboardPage() {
       <div className="min-h-screen w-full bg-[#070a0d] grid place-items-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center text-zinc-200">
           <div className="p-8 rounded-2xl bg-[#0b1015] border border-[#2d4a25] backdrop-blur-xl shadow-2xl">
-            <Shield className="h-16 w-16 mx-auto mb-6 text-[#87cf5f]" />
+            <Image
+              src="/bugscope.svg"
+              alt="BugScope Logo"
+              width={144}
+              height={48}
+              className="h-12 w-auto object-contain"
+              priority
+            />
             <h2 className="text-2xl font-semibold mb-2 bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">Authentication Required</h2>
             <p className="text-zinc-400 mb-6 text-sm">Please sign in to access your security testing dashboard</p>
             <Button
@@ -451,7 +489,14 @@ export default function DashboardPage() {
           <div className="w-full mx-auto flex items-center justify-between py-4 px-10">
             <div className="flex items-center gap-2">
               <span className="rounded-lg p-2 bg-[#152316] ring-1 ring-[#2d4a25]/60">
-                <Shield className="h-6 w-6 text-[#87cf5f]" />
+                <Image
+                  src="/bugscope.svg"
+                  alt="BugScope Logo"
+                  width={120}
+                  height={40}
+                  className="h-10 w-auto object-contain"
+                  priority
+                />
               </span>
               <span className="text-xl font-semibold text-white tracking-tight">BugScope</span>
             </div>
@@ -732,7 +777,7 @@ export default function DashboardPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-white text-lg font-semibold tracking-tight">
                     <Lightbulb className="h-5 w-5 text-[#87cf5f]" />
-                    AI Suggestions
+                    AI Suggestions {aiVersion && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-[#152316] border border-[#1f2d20] text-[#2db08d]">{aiVersion}</span>}
                   </CardTitle>
                   <div className="absolute top-6 right-6">
                     <Button
@@ -754,35 +799,115 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {!aiSuggestions.length && (
+                  {/* Advanced AI controls removed */}
+                  {(!aiSuggestions.length && !progressSummary) && (
                     <div className="text-center py-6">
                       <Brain className="h-10 w-10 text-zinc-500 mx-auto mb-2" />
-                      <p className="text-xs text-zinc-400 tracking-tight">Get AI-powered suggestions for additional security checks</p>
+                      <p className="text-xs text-zinc-400 tracking-tight">Get AI-powered next steps & suggestions based on your progress</p>
                     </div>
                   )}
-                  <div className="space-y-4">
-                    {aiSuggestions.map((cat, i) => (
-                      <div
-                        key={`${cat.name}-${i}`}
-                        className="rounded-lg border border-[#1f2d20] bg-[#0b1015] p-4 relative
-                          before:absolute before:top-0 before:left-0 before:w-full before:h-[1px] before:bg-gradient-to-r before:from-[#8bd46a] before:to-[#2db08d] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-                      >
-                        <div className="mb-2 font-semibold text-[#2db08d] text-sm tracking-tight">{cat.name}</div>
-                        <ul className="space-y-2">
-                          {(cat.items as Array<{ text: string; solution?: string }>).map((it, idx) => (
-                            <li key={idx} className="rounded-lg bg-[#070a0d] p-3 border border-[#1f2d20]">
-                              <div className="text-xs text-white tracking-tight">{it.text}</div>
-                              {it.solution && (
-                                <div className="mt-1 text-xs text-[#2db08d] bg-[#2db08d]/10 rounded px-2 py-1">
-                                  <span className="font-medium">Quick Fix:</span> {it.solution}
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                  {progressSummary && (
+                    <div className="rounded-xl border border-[#25402c] bg-[#0e1510] p-5 mb-5 shadow-md relative overflow-hidden">
+                      <div className="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_30%_20%,#2db08d,transparent_60%)]" />
+                      <div className="flex items-start justify-between mb-3 relative z-10">
+                        <div>
+                          <div className="text-[11px] font-semibold text-[#b6f09c] tracking-wide uppercase">Progress Intelligence</div>
+                          <div className="mt-1 h-2 w-40 rounded bg-[#1c2a20] overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-[#8bd46a] to-[#2db08d]" style={{width: `${Math.min(progressSummary.overallPercent,100)}%`}} />
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-medium tabular-nums">{progressSummary.completed}/{progressSummary.total} ({progressSummary.overallPercent}%)</div>
                       </div>
-                    ))}
-                  </div>
+                      {Array.isArray(progressSummary.categories) && progressSummary.categories.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mt-2 relative z-10">
+                          {progressSummary.categories.slice(0,4).map((c: AIProgressCategory, i: number)=> (
+                            <div key={i} className="rounded bg-[#162019] border border-[#223627] px-2 py-1 flex items-center justify-between">
+                              <span className="text-[10px] text-zinc-300 truncate mr-2">{c.name}</span>
+                              <span className="text-[10px] font-semibold text-[#8bd46a]">{c.percent}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {Array.isArray(progressSummary.notableGaps) && progressSummary.notableGaps.length > 0 && (
+                        <div className="mt-3 space-y-1 relative z-10">
+                          {progressSummary.notableGaps.slice(0,3).map((g: string, i: number) => (
+                            <div key={i} className="text-[11px] text-zinc-400 flex gap-1">
+                              <span className="text-[#2db08d]">•</span><span className="line-clamp-2">{g}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {nextSteps?.length > 0 && (
+                    <div className="rounded-xl border border-[#25402c] bg-[#0e1510] p-6 mb-6 shadow-md">
+                      <div className="mb-4 font-semibold text-[#2db08d] text-sm md:text-[15px] tracking-tight flex items-center gap-2"><Sparkles className="h-5 w-5 text-[#8bd46a]"/>Recommended Next Steps</div>
+                      <ol className="space-y-4 list-decimal ml-6">
+                        {nextSteps.slice(0,6).map((s: AINextStep, i: number) => {
+                          const impactColor = s.impact === 'high' ? 'text-red-300 bg-red-500/10 border-red-500/30' : s.impact === 'medium' ? 'text-amber-300 bg-amber-500/10 border-amber-500/30' : 'text-sky-300 bg-sky-500/10 border-sky-500/30';
+                          return (
+                            <li key={i} className="text-[14px] md:text-[15px] text-white/90 leading-snug">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium">{s.step}</span>
+                                {s.impact && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${impactColor}`}>{s.impact.toUpperCase()}</span>}
+                              </div>
+                              {s.why && <div className="text-[12px] md:text-[13px] text-zinc-400 mt-1 ml-0.5 leading-snug">{s.why}</div>}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  )}
+                  {missingCritical?.length > 0 && (
+                    <div className="rounded-xl border border-[#352a1f] bg-[#16110c] p-6 mb-6 shadow-md">
+                      <div className="mb-4 font-semibold text-[#f3e7d3] text-sm md:text-[15px] tracking-tight flex items-center gap-2"><Lightbulb className="h-5 w-5 text-[#f3e7d3]"/>Potential Gaps</div>
+                      <ul className="space-y-4">
+                        {missingCritical.slice(0,6).map((m: AIMissingCritical, i: number) => {
+                          const riskColor = m.risk === 'critical' ? 'bg-red-500/15 text-red-300 border-red-500/30' : m.risk === 'high' ? 'bg-orange-500/15 text-orange-300 border-orange-500/30' : m.risk === 'medium' ? 'bg-amber-500/15 text-amber-200 border-amber-500/30' : 'bg-sky-500/15 text-sky-200 border-sky-500/30';
+                          return (
+                            <li key={i} className="text-[13px] md:text-[14px] text-white/85 leading-snug rounded-lg border border-[#2d4a25]/30 bg-[#0f1410] p-4">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="font-medium text-[#2db08d]">{m.text}</span>
+                                {m.risk && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${riskColor}`}>{m.risk.toUpperCase()}</span>}
+                              </div>
+                              {m.reason && <div className="text-[12px] md:text-[13px] text-zinc-400 leading-snug mt-1">{m.reason}</div>}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {aiSuggestions.length > 0 && (
+                    <div className="space-y-5">
+                      {aiSuggestions.map((cat, i) => (
+                        <div
+                          key={`${cat.name}-${i}`}
+                          className="rounded-xl border border-[#1f2d20] bg-[#0b1015] p-5 relative shadow-md
+                            before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-gradient-to-r before:from-[#8bd46a] before:to-[#2db08d] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                        >
+                          <div className="mb-3 font-semibold text-[#2db08d] text-[13px] tracking-tight flex items-center gap-2"><Brain className="h-4 w-4 text-[#2db08d]"/>{cat.name}</div>
+                          <ul className="space-y-3">
+                            {cat.items.map((it: AISuggestionItem, idx: number) => {
+                              const impactColor = it.impact === 'high' ? 'text-red-300 bg-red-500/10 border-red-500/30' : it.impact === 'medium' ? 'text-amber-300 bg-amber-500/10 border-amber-500/30' : it.impact === 'low' ? 'text-sky-300 bg-sky-500/10 border-sky-500/30' : 'text-zinc-300 bg-zinc-500/5 border-zinc-500/20';
+                              return (
+                                <li key={idx} className="rounded-lg bg-[#070a0d] p-4 border border-[#1f2d20]">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <div className="text-[12px] text-white tracking-tight flex-1">{it.text}</div>
+                                    {it.impact && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${impactColor}`}>{it.impact.toUpperCase()}</span>}
+                                  </div>
+                                  {it.solution && (
+                                    <div className="mt-1 text-[11px] text-[#2db08d] bg-[#2db08d]/10 rounded px-2 py-1 leading-snug">
+                                      <span className="font-medium">Quick Fix:</span> {it.solution}
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </motion.div>
 

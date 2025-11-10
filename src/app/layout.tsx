@@ -15,22 +15,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Use env var (NEXT_PUBLIC_APP_URL) if provided, fallback to production URL.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bugscope-gamma.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: "BugScope",
   description: "Your AI-powered security testing platform",
   openGraph: {
     title: "BugScope",
     description: "Your AI-powered security testing platform",
-    url: "https://bugscope-gamma.vercel.app/",
+    url: appUrl,
+    siteName: "BugScope",
     type: "website",
     images: [
       {
-        url: "/bug.svg",
+        // Use PNG for more reliable social card rendering (SVG support inconsistent across platforms)
+        url: "/bugscope.png",
         width: 1200,
         height: 630,
-        alt: "BugScope preview",
+        alt: "BugScope logo preview",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BugScope",
+    description: "Your AI-powered security testing platform",
+    // Mirror OpenGraph image with PNG variant
+    images: ["/bugscope.png"],
   },
 };
 

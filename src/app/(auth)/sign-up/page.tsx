@@ -14,9 +14,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import Spotlight from "@/components/fx/Spotlight";
+import { GridBackground } from "@/components/fx/GridBackground";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import Image from 'next/image';
+import { Shield, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,27 +45,31 @@ function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-20 relative">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#152316] rounded-full blur-3xl opacity-70"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#0f1711] rounded-full blur-3xl opacity-70"></div>
-      </div>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-16 sm:px-6 relative">
+      <GridBackground />
+      <Spotlight />
 
       <div className="relative w-full max-w-md z-10">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+        {/* Top Back to Home button with improved padding and hover consistent with navbar */}
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mt-6 md:mt-8 mb-8">
           <Link href="/">
-            <Button variant="ghost" className="text-[#b6f09c] hover:bg-[#152316] p-0">
-              <ArrowLeft className="h-4 w-4 mr-2 text-[#87cf5f]" />
-              Back to Home
+            <Button
+              variant="outline"
+              className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[0.95rem] border border-[#2d4a25]/60 bg-transparent text-white/90 hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f] transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-zinc-400 transition-colors group-hover:text-[#2db08d]" />
+              <span className="transition-colors group-hover:text-[#b6f09c]">Back to Home</span>
             </Button>
           </Link>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl shadow-xl">
-            <CardHeader className="text-center pb-5">
+          <Card className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,.6)]">
+            <CardHeader className="text-center pb-8">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="flex justify-center mb-4">
-                <Image src="/bugscope.svg" alt="BugScope" width={100} height={100} />
+                <div className="p-4 bg-[#152316] rounded-2xl shadow-lg ring-1 ring-[#2d4a25]/60">
+                  <Shield className="h-8 w-8 text-[#87cf5f]" />
+                </div>
               </motion.div>
               <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">
                 Join BugScope
@@ -170,6 +175,8 @@ function SignUpPage() {
                   </Link>
                 </p>
               </div>
+
+              {/* Back to Home kept at the top per request */}
             </CardContent>
           </Card>
         </motion.div>
