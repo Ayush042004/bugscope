@@ -9,7 +9,7 @@ import { SignUpSchema } from "@/lib/validation";
 export async function POST(request: NextRequest){
     await dbConnect();
     try {
-        const body = await request.json();
+        const body: unknown = await request.json();
         const parsed = SignUpSchema.safeParse(body);
         if (!parsed.success) {
             return Response.json({ success: false, message: parsed.error.flatten() }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest){
             avatar: randomAvatar,
         });
         await newUser.save();
-        return Response.json({ success: true, message: "User registered successfully!" }, { status: 201 });
+        return Response.json({ success: true, message: "User registered successfully!", data: { id: String(newUser._id) } }, { status: 201 });
     } catch (error) {
         console.error("Error registering user: ", error);
         return Response.json({ success: false, message: "Registration failed" }, { status: 500 });

@@ -17,10 +17,10 @@ export default function Navbar() {
       animate={{ y: 0 }}
       className="fixed top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/10"
     >
-  <div className="container mx-auto px-4 sm:px-6 py-1 sm:py-0">
+  <div className="w-full max-w-none px-2 sm:px-4 md:px-6 py-1">
 
 
-        <div className="flex items-center justify-between w-full overflow-hidden">
+  <div className="flex items-center justify-between w-full overflow-hidden">
 
           
           <motion.div
@@ -31,21 +31,21 @@ export default function Navbar() {
             <Image
               src="/bugscope.svg"
               alt="BugScope Logo"
-              width={150}
-              height={50}
+              width={180}
+              height={60}
               priority
-              className="h-10 w-auto sm:h-12 md:h-14 transition-transform duration-300 will-change-transform"
+              className="h-12 w-auto sm:h-14 md:h-16 transition-transform duration-300 will-change-transform"
               style={{ color: "transparent" }}
             />
 
-            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent whitespace-nowrap">
+            <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent whitespace-nowrap max-[400px]:hidden">
               BugScope
             </span>
           </motion.div>
 
        
           {session ? (
-            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0">
 
               {/* User Card - Hidden on mobile */}
               <motion.div
@@ -80,8 +80,8 @@ export default function Navbar() {
               {/* Logout */}
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
+                  size="lg"
                   variant="outline"
-                  size="sm"
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className="group rounded-lg border border-[#2d4a25]/60 bg-transparent text-white hover:bg-[#152316] hover:border-[#2d4a25] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
                 >
@@ -107,7 +107,10 @@ export default function Navbar() {
               </Link>
 
               <Link href="/sign-up">
-                <Button className="rounded-lg bg-gradient-to-r from-[#8bd46a] to-[#2db08d] hover:from-[#79c85c] hover:to-[#249e7f] text-white shadow-lg ring-1 ring-[#2d4a25]/60 whitespace-nowrap">
+                <Button
+                  size="lg"
+                  className="rounded-lg bg-gradient-to-r from-[#8bd46a] to-[#2db08d] hover:from-[#79c85c] hover:to-[#249e7f] text-white shadow-lg ring-1 ring-[#2d4a25]/60 whitespace-nowrap"
+                >
                   Get Started
                 </Button>
               </Link>

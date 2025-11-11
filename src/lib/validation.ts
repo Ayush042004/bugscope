@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import sanitize from 'mongo-sanitize';
 
-// Helper to sanitize & trim strings
-const sanString = (val: unknown) => {
-  if (typeof val !== 'string') return val;
-  return sanitize(val.trim());
+// Helper to sanitize & trim strings while preserving string type for Zod inference
+const sanString = (val: string): string => {
+  return sanitize(val.trim()) as string;
 };
 
 export const SignUpSchema = z.object({
@@ -35,7 +34,7 @@ export const ChecklistUpdateSchema = z.object({
   categoryName: z.string().min(1).max(128).transform(sanString),
   itemText: z.string().min(1).max(512).transform(sanString),
   checked: z.boolean(),
-  note: z.string().max(2000).optional().transform(val => sanString(val))
+  note: z.string().max(2000).optional().transform(val => (typeof val === 'string' ? sanString(val) : val))
 });
 
 export const ScopeParamSchema = z.object({
