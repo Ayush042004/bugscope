@@ -5,47 +5,53 @@ import { UserIcon, Settings, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const user = session?.user;
+  const pathname = usePathname();
 
   return (
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/10"
+      role="navigation"
+      aria-label="Main"
+      className="fixed top-0 z-50 w-full h-16 sm:h-[4.5rem] bg-black/90 backdrop-blur-lg border-b border-white/10"
     >
-  <div className="w-full max-w-none px-2 sm:px-4 md:px-6 py-1">
+      <div className="container mx-auto h-full px-4 md:px-8">
 
 
-  <div className="flex items-center justify-between w-full overflow-hidden">
+        <div className="flex h-full items-center justify-between w-full">
 
           
-          <motion.div
-            className="flex items-center gap-2 sm:gap-3 flex-shrink-0 cursor-pointer select-none"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 300 }}
-          >
-            <Image
-              src="/bugscope.svg"
-              alt="BugScope Logo"
-              width={180}
-              height={60}
-              priority
-              className="h-12 w-auto sm:h-14 md:h-16 transition-transform duration-300 will-change-transform"
-              style={{ color: "transparent" }}
-            />
+          <Link href="/" aria-label="Go to homepage" className="flex min-h-[44px] items-center">
+            <motion.div
+              className="flex items-center gap-2 sm:gap-3 flex-shrink-0 select-none"
+              whileHover={{ scale: 1.03 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Image
+                src="/bugscope.svg"
+                alt="BugScope Logo"
+                width={150}
+                height={50}
+                priority
+                className="h-10 w-auto sm:h-12 md:h-14 transition-transform duration-300 will-change-transform"
+                style={{ color: "transparent" }}
+              />
 
-            <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent whitespace-nowrap max-[400px]:hidden">
-              BugScope
-            </span>
-          </motion.div>
+              <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent whitespace-nowrap">
+                BugScope
+              </span>
+            </motion.div>
+          </Link>
 
        
           {session ? (
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
 
               {/* User Card - Hidden on mobile */}
               <motion.div
@@ -67,23 +73,28 @@ export default function Navbar() {
               </motion.div>
 
              
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="group rounded-lg border border-[#2d4a25]/60 bg-transparent text-[#87cf5f] hover:bg-[#152316] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
-                >
-                  <Settings className="h-4 w-4 text-zinc-300 group-hover:text-[#2db08d]" />
-                </Button>
-              </motion.div>
+              {/* Hide settings button on dashboard route */}
+              {!(pathname?.startsWith("/dashboard")) && (
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open settings"
+                    className="group rounded-lg min-h-[44px] min-w-[44px] border border-[#2d4a25]/60 bg-transparent text-[#87cf5f] hover:bg-[#152316] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
+                  >
+                    <Settings className="h-4 w-4 text-zinc-300 group-hover:text-[#2db08d]" />
+                  </Button>
+                </motion.div>
+              )}
 
               {/* Logout */}
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
-                  size="lg"
                   variant="outline"
+                  size="sm"
+                  aria-label="Logout"
                   onClick={() => signOut({ callbackUrl: "/" })}
-                  className="group rounded-lg border border-[#2d4a25]/60 bg-transparent text-white hover:bg-[#152316] hover:border-[#2d4a25] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
+                  className="group rounded-lg min-h-[44px] min-w-[44px] border border-[#2d4a25]/60 bg-transparent text-white hover:bg-[#152316] hover:border-[#2d4a25] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
                 >
                   <LogOut className="mr-2 h-4 w-4 text-zinc-400 group-hover:text-[#2db08d]" />
                   <span className="group-hover:text-[#b6f09c]">Logout</span>
@@ -99,17 +110,18 @@ export default function Navbar() {
               <Link href="/sign-in">
                 <Button
                   variant="outline"
-                  className="group rounded-lg border border-[#2d4a25]/60 bg-transparent text-white/90 hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f] whitespace-nowrap"
+                  size="sm"
+                  className="group rounded-md border border-[#2d4a25]/60 bg-transparent text-white/90 hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f] whitespace-nowrap px-3 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm"
                 >
-                  <LogIn className="mr-2 h-4 w-4 text-zinc-400 group-hover:text-[#2db08d]" />
+                  <LogIn className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-zinc-400 group-hover:text-[#2db08d]" />
                   <span className="group-hover:text-[#b6f09c]">Sign In</span>
                 </Button>
               </Link>
 
               <Link href="/sign-up">
                 <Button
-                  size="lg"
-                  className="rounded-lg bg-gradient-to-r from-[#8bd46a] to-[#2db08d] hover:from-[#79c85c] hover:to-[#249e7f] text-white shadow-lg ring-1 ring-[#2d4a25]/60 whitespace-nowrap"
+                  size="sm"
+                  className="rounded-md bg-gradient-to-r from-[#8bd46a] to-[#2db08d] hover:from-[#79c85c] hover:to-[#249e7f] text-white shadow-lg ring-1 ring-[#2d4a25]/60 whitespace-nowrap px-3 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm"
                 >
                   Get Started
                 </Button>

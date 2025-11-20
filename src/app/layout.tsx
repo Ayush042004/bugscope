@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: "BugScope",
   description: "Your AI-powered security testing platform",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "BugScope",
     description: "Your AI-powered security testing platform",
