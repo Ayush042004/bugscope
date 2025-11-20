@@ -22,7 +22,8 @@ interface ResponseData { version?: string; progressSummary?: ProgressSummary; ne
 
 type CacheEntry = { value: ResponseData; ts: number };
 const RESPONSE_CACHE = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 1000 * 60 * 3; // 3 minutes
+// Cache TTL increased to 5 minutes to reduce LLM calls for common templates/scopes
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
 const CACHE_MAX = 40;
 
 function getCache(key: string) {
@@ -164,6 +165,23 @@ export async function POST(request: NextRequest) {
     const cached = getCache(cacheKey);
     if (cached) {
       return Response.json({ success: true, data: { ...cached, cached: true } }, { status: 200 });
+    }
+
+    // FAST-PATH: if remaining unchecked items are few (<= maxSteps) we can
+    // return heuristic next steps immediately without calling the LLM.
+    // This keeps the UI highly responsive for small checklist updates.
+    const remainingCount = perCategory.reduce((acc, c) => acc + Math.max(0, c.total - c.done), 0);
+    if (remainingCount > 0 && remainingCount <= maxSteps) {
+      const fastOut: ResponseData = {
+        version: 'v2',
+        progressSummary: total ? { overallPercent, completed: done, total, notableGaps: [], categories: perCategory.map(c => ({ name: c.name, percent: c.percent })) } : undefined,
+        nextSteps: heuristicNextSteps(categories, maxSteps),
+        missingCritical: [],
+        suggestions: [],
+        cached: false,
+      };
+      setCache(cacheKey, fastOut);
+      return Response.json({ success: true, data: fastOut }, { status: 200 });
     }
 
   const prompt = `You are an elite application security / bug bounty assistant.

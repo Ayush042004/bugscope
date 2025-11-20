@@ -32,6 +32,7 @@ import {
   ChevronRight,
   ChevronsDown,
   ChevronsUp,
+  ChevronDown,
   LogIn,
 } from 'lucide-react';
 import {
@@ -49,6 +50,7 @@ const ROUTES = {
   GET_USER_CHECKLIST: (scope: string) => `/api/checklists/${encodeURIComponent(scope)}`,
   GET_TEMPLATE: (scope: string) => `/api/get-temp/${encodeURIComponent(scope)}`,
   PATCH_ITEM: '/api/checklists/update',
+    UPDATE_ALL: '/api/checklists/update-all',
   AI_SUGGEST: '/api/suggest',
 };
 
@@ -119,6 +121,9 @@ export default function DashboardPage() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   // Removed advanced AI tuning controls (temperature, confidence filter, sort) per user request.
   const [aiVersion, setAiVersion] = useState<string | null>(null);
+  // Optimistic update / debounce helpers
+  const pendingPatchesRef = React.useRef(new Map<string, { patch: Partial<Pick<ChecklistItem, 'checked' | 'note'>>; prevState?: ChecklistDoc | null }>());
+  const debounceTimersRef = React.useRef(new Map<string, number>());
 
   const loadChecklist = useCallback(async (scope: string) => {
     setLoadingChecklist(true);
@@ -132,11 +137,18 @@ export default function DashboardPage() {
       }
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && err.response.status === 404) {
+        // If both checklist and template are missing, show a friendly "Coming Soon" state instead of repeated errors
         try {
           const tempRes = await axios.get(ROUTES.GET_TEMPLATE(scope));
           const template = tempRes.data.template;
           if (!template) {
-            toast.error(`No template available for ${scope}`);
+            setChecklist(null);
+            toast(() => (
+              <div className="text-sm">
+                <div className="font-semibold mb-1">{scope} checklist coming soon</div>
+                <div className="text-xs text-zinc-400">We&apos;re still curating checks for this scope. Try another scope for now.</div>
+              </div>
+            ));
             return;
           }
           const createRes = await axios.post(ROUTES.CREATE_CHECKLIST, {
@@ -146,9 +158,15 @@ export default function DashboardPage() {
           const { checklist: created } = createRes.data;
           setChecklist(created);
           toast.success(`Seeded ${scope} checklist for you.`);
-        } catch (innerErr: unknown) {
-          const errorMessage = innerErr instanceof Error ? innerErr.message : 'Failed to seed checklist';
-          toast.error(errorMessage);
+        } catch {
+          // If the template route itself 404s or fails, treat this scope as "Coming Soon"
+          setChecklist(null);
+          toast(() => (
+            <div className="text-sm">
+              <div className="font-semibold mb-1">{scope} checklist coming soon</div>
+              <div className="text-xs text-zinc-400">We&apos;re still curating checks for this scope. Try another scope for now.</div>
+            </div>
+          ));
         }
       } else {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load checklist';
@@ -196,40 +214,73 @@ export default function DashboardPage() {
       .filter((cat) => cat.items.length > 0);
   }, [checklist, search]);
 
-  const patchItem = async (
+  // Debounced, optimistic patching: Update UI immediately, schedule network call and rollback on failure.
+  const schedulePatch = (
     scope: string,
     categoryName: string,
     itemText: string,
-    patch: Partial<Pick<ChecklistItem, 'checked' | 'note'>>
+    patch: Partial<Pick<ChecklistItem, 'checked' | 'note'>>,
+    debounceMs = 600
   ) => {
-    setSaving(true);
-    try {
-      const res = await fetch(ROUTES.PATCH_ITEM, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scope, categoryName, itemText, ...patch }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setChecklist((prev) => {
-        if (!prev) return prev;
-        const next = structuredClone(prev) as ChecklistDoc;
-        const cat = next.categories.find((c) => c.name === categoryName);
-        const item = cat?.items.find((i) => i.text === itemText);
-        if (item) {
-          if (typeof patch.checked === 'boolean') item.checked = patch.checked;
-          if (typeof patch.note === 'string') item.note = patch.note;
-        }
-        return next;
-      });
-      if (patch.checked) {
-        toast.success('Check completed!', { icon: '✅' });
-      }
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : 'Could not update item';
-      toast.error(errorMessage);
-    } finally {
-      setSaving(false);
+    // Key for this item
+    const key = `${scope}::${categoryName}::${itemText}`;
+
+    // Save previous state for rollback if not already saved
+    if (!pendingPatchesRef.current.has(key)) {
+      pendingPatchesRef.current.set(key, { patch, prevState: checklist ? structuredClone(checklist) : null });
+    } else {
+      // update patch to latest
+      const existing = pendingPatchesRef.current.get(key)!;
+      existing.patch = { ...existing.patch, ...patch };
+      pendingPatchesRef.current.set(key, existing);
     }
+
+    // Apply optimistic UI update immediately
+    setChecklist((prev) => {
+      if (!prev) return prev;
+      const next = structuredClone(prev) as ChecklistDoc;
+      const cat = next.categories.find((c) => c.name === categoryName);
+      const item = cat?.items.find((i) => i.text === itemText);
+      if (item) {
+        if (typeof patch.checked === 'boolean') item.checked = patch.checked;
+        if (typeof patch.note === 'string') item.note = patch.note;
+      }
+      return next;
+    });
+
+    // Clear existing timer
+    const prevTimer = debounceTimersRef.current.get(key);
+    if (prevTimer) clearTimeout(prevTimer);
+
+    const timer = window.setTimeout(async () => {
+      // send the latest patch
+      const entry = pendingPatchesRef.current.get(key);
+      if (!entry) return;
+      const toSend = entry.patch;
+      // remove pending entry before network to avoid races
+      pendingPatchesRef.current.delete(key);
+      debounceTimersRef.current.delete(key);
+
+      setSaving(true);
+      try {
+        const res = await fetch(ROUTES.PATCH_ITEM, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope, categoryName, itemText, ...toSend }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        // success: nothing else needed (UI already updated optimistically)
+      } catch (e: unknown) {
+        // rollback to previous state
+        if (entry.prevState) setChecklist(entry.prevState);
+        const errorMessage = e instanceof Error ? e.message : 'Could not update item';
+        toast.error(errorMessage);
+      } finally {
+        setSaving(false);
+      }
+    }, debounceMs);
+
+    debounceTimersRef.current.set(key, timer);
   };
 
   const fetchSuggestions = async () => {
@@ -264,6 +315,31 @@ export default function DashboardPage() {
       toast.error(errorMessage);
     } finally {
       setSuggestLoading(false);
+    }
+  };
+
+  const bulkUpdate = async (action: 'checkAll' | 'clearAll') => {
+    if (!checklist) return;
+    const scope = checklist.scope;
+    // optimistic UI update
+    const prev = structuredClone(checklist) as ChecklistDoc;
+    const next = structuredClone(checklist) as ChecklistDoc;
+    for (const c of next.categories) for (const i of c.items) i.checked = action === 'checkAll';
+    setChecklist(next);
+    try {
+      const res = await fetch(ROUTES.UPDATE_ALL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope, action }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.checklist) throw new Error(data?.message || 'Bulk update failed');
+      setChecklist(data.checklist as ChecklistDoc);
+      toast.success(action === 'checkAll' ? 'All checks marked completed' : 'All checks cleared');
+    } catch (e: unknown) {
+      setChecklist(prev);
+      const errorMessage = e instanceof Error ? e.message : 'Bulk update failed';
+      toast.error(errorMessage);
     }
   };
 
@@ -309,21 +385,38 @@ export default function DashboardPage() {
     if (!checklist) return;
     setExportLoading('Markdown');
     try {
-      const content =
-        `# ${selectedScope} Security Checklist\n\n` +
+      // Wrap long lines at ~80 chars for better readability
+      const wrap = (text: string, width = 80) => {
+        const words = text.split(/\s+/);
+        const lines: string[] = [];
+        let cur = '';
+        for (const w of words) {
+          if ((cur + ' ' + w).trim().length <= width) {
+            cur = (cur + ' ' + w).trim();
+          } else {
+            if (cur) lines.push(cur);
+            cur = w;
+          }
+        }
+        if (cur) lines.push(cur);
+        return lines.join('\n');
+      };
+
+      const content = `# ${selectedScope} Security Checklist\n\n` +
+        `Legend: ✅ = Completed, ☐ = Pending\n\n` +
         checklist.categories
           .map((cat) => {
-            return (
-              `## ${cat.name}\n` +
-              cat.items
-                .map(
-                  (item) =>
-                    `- [${item.checked ? 'x' : ' '}] ${item.text}\n` +
-                    (item.tooltip ? `  - **Tooltip**: ${item.tooltip}\n` : '') +
-                    (item.note ? `  - **Note**: ${item.note}\n` : '')
-                )
-                .join('\n')
-            );
+            const items = cat.items
+              .map((item) => {
+                const lines = [];
+                const mark = item.checked ? '✅' : '☐';
+                lines.push(`${mark} ${wrap(item.text)}`);
+                if (item.tooltip) lines.push(`  - **Tooltip**: ${wrap(item.tooltip)}`);
+                if (item.note) lines.push(`  - **Note**: ${wrap(item.note)}`);
+                return lines.join('\n');
+              })
+              .join('\n');
+            return `## ${cat.name}\n${items}`;
           })
           .join('\n\n');
       const blob = new Blob([content], { type: 'text/markdown' });
@@ -341,48 +434,38 @@ export default function DashboardPage() {
     }
   };
 
-  const exportCSV = async () => {
+  
+  // Plain-text export (TXT)
+  const exportTXT = async () => {
     if (!checklist) return;
-    setExportLoading('CSV');
+    setExportLoading('TXT');
     try {
-      const headers = ['Category,Item,Status,Tooltip,Note'];
-      const rows = checklist.categories.flatMap((cat) =>
-        cat.items.map(
-          (item) =>
-            `"${cat.name}","${item.text.replace(/"/g, '""')}",${item.checked ? 'Completed' : 'Pending'},"${(item.tooltip || '').replace(/"/g, '""')}","${(item.note || '').replace(/"/g, '""')}"`
-        )
-      );
-      const content = headers.concat(rows).join('\n');
-      const blob = new Blob([content], { type: 'text/csv' });
+  const lines: string[] = [];
+  lines.push(`${selectedScope} Security Checklist`);
+  lines.push('');
+  lines.push('Legend: ✅ = Completed, ☐ = Pending');
+  lines.push('');
+      checklist.categories.forEach((cat) => {
+        lines.push(cat.name.toUpperCase());
+        cat.items.forEach((item) => {
+          const mark = item.checked ? '✅' : '☐';
+          lines.push(`${mark} ${item.text}`);
+          if (item.tooltip) lines.push(`  Tooltip: ${item.tooltip}`);
+          if (item.note) lines.push(`  Note: ${item.note}`);
+        });
+        lines.push('');
+      });
+      const content = lines.join('\n');
+      const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${selectedScope}_checklist.csv`;
+      a.download = `${selectedScope}_checklist.txt`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('CSV exported successfully!');
+      toast.success('TXT exported successfully!');
     } catch {
-      toast.error('Failed to export CSV');
-    } finally {
-      setExportLoading(null);
-    }
-  };
-
-  const exportJSON = async () => {
-    if (!checklist) return;
-    setExportLoading('JSON');
-    try {
-      const content = JSON.stringify(checklist, null, 2);
-      const blob = new Blob([content], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${selectedScope}_checklist.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('JSON exported successfully!');
-    } catch {
-      toast.error('Failed to export JSON');
+      toast.error('Failed to export TXT');
     } finally {
       setExportLoading(null);
     }
@@ -392,35 +475,125 @@ export default function DashboardPage() {
     if (!checklist) return;
     setExportLoading('PDF');
     try {
-      const doc = new jsPDF();
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      const maxWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      const addWrappedText = (text: string, fontSize = 10, indent = 0) => {
+        // Ensure a stable, widely-supported font and sanitize spacing before rendering
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(fontSize);
+
+        let cleaned = String(text || '').normalize('NFC');
+
+        // zero-width / control chars
+        cleaned = cleaned.replace(/\u200B|\uFEFF/g, '');
+        cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+        cleaned = cleaned.replace(/ {2,}/g, ' ');
+
+        // quotes, dash, ellipsis
+        cleaned = cleaned
+          .replace(/[’‘]/g, "'")
+          .replace(/[“”]/g, '"')
+          .replace(/–|—/g, '-')
+          .replace(/…/g, '...');
+
+        // ---- ARROW / WEIRD SEQUENCE NORMALIZATION ----
+        // Common arrow-like symbols => ASCII arrows
+        cleaned = cleaned
+          .replace(/[→⇒➝➜➡➞➟➠➤➥➦➧➨➩➪➫➬➭➮➯]/g, '->')
+          .replace(/[←⇐]/g, '<-')
+          .replace(/[↔⇔]/g, '<->');
+
+        // Sometimes PDF encodings turn into odd punctuation combos; normalize them
+        cleaned = cleaned
+          .replace(/!\s*’/g, ' ->')    // `! ’` style markers -> arrow
+          .replace(/%\s*¡/g, ' ->')    // `%¡` weird combo -> arrow
+          .replace(/¡/g, '!')          // standalone inverted ! -> normal !
+          .replace(/´/g, "'");         // acute accent to apostrophe
+
+        const effectiveWidth = maxWidth - indent;
+        const lines = doc.splitTextToSize(cleaned, effectiveWidth);
+        for (const line of lines) {
+          if (y + fontSize + 6 > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.text(line, margin + indent, y);
+          y += fontSize + 6;
+        }
+      };
+
+      // Title
       doc.setFontSize(16);
-      doc.text(`${selectedScope} Security Checklist`, 20, 20);
-      let y = 30;
+      addWrappedText(`${selectedScope} Security Checklist`, 16, 0);
+      y += 6;
+
       checklist.categories.forEach((cat) => {
-        doc.setFontSize(14);
-        doc.text(cat.name, 20, y, { maxWidth: 160 });
-        y += 10;
+        // Category
+        doc.setFontSize(12);
+        if (y + 18 > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        addWrappedText(cat.name, 12, 0);
+        y += 4;
+
         cat.items.forEach((item) => {
-          doc.setFontSize(10);
-          doc.text(`- [${item.checked ? 'X' : ' '}] ${item.text}`, 25, y, { maxWidth: 150 });
-          y += 6;
+          const boxSize = 11;
+          const indentForText = 24; // space reserved for checkbox + small gap
+
+          // Roughly estimate height needed for this item block: checkbox + up to
+          // a few lines of text/tooltips/notes. This keeps the whole block on
+          // the same page so tooltip/note never end up alone on the next page.
+          const estimatedBlockHeight = boxSize + 10 + 3 * 14; // checkbox + ~3 text lines
+          if (y + estimatedBlockHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+
+          // Draw a checkbox with a vector tick for completed items so it visually matches a ✅
+          const boxX = margin + 4;
+          const boxY = y - 6; // move box slightly up so it vertically aligns with text baseline
+          doc.setDrawColor(80, 80, 80);
+          doc.rect(boxX, boxY, boxSize, boxSize);
+          if (item.checked) {
+            // light fill
+            doc.setFillColor(230, 255, 240);
+            doc.rect(boxX + 0.8, boxY + 0.8, boxSize - 1.6, boxSize - 1.6, 'F');
+            // green tick inside box
+            doc.setDrawColor(45, 176, 141);
+            doc.setLineWidth(1.5);
+            const x1 = boxX + 2.2;
+            const y1 = boxY + boxSize / 2;
+            const x2 = boxX + 4.8;
+            const y2 = boxY + boxSize - 2.2;
+            const x3 = boxX + boxSize - 2.2;
+            const y3 = boxY + 2.2;
+            doc.line(x1, y1, x2, y2);
+            doc.line(x2, y2, x3, y3);
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(0, 0, 0);
+          }
+
+          // Item text and helper lines (tooltip/note) indented to avoid overlapping the checkbox
+          addWrappedText(item.text, 10, indentForText);
           if (item.tooltip) {
-            doc.setFontSize(8);
-            doc.text(`Tooltip: ${item.tooltip}`, 30, y, { maxWidth: 140 });
-            y += 5;
+            addWrappedText(`Tooltip: ${item.tooltip}`, 9, indentForText + 6);
           }
           if (item.note) {
-            doc.setFontSize(8);
-            doc.text(`Note: ${item.note}`, 30, y, { maxWidth: 140 });
-            y += 5;
+            addWrappedText(`Note: ${item.note}`, 9, indentForText + 6);
           }
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
+          y += 2;
         });
-        y += 5;
+
+        y += 6;
       });
+
       doc.save(`${selectedScope}_checklist.pdf`);
       toast.success('PDF exported successfully!');
     } catch {
@@ -488,16 +661,14 @@ export default function DashboardPage() {
         <header className="sticky top-0 z-20 bg-[#070a0d]/90 backdrop-blur-xl shadow-md border-b border-[#1c2a1d]">
           <div className="w-full mx-auto flex items-center justify-between py-4 px-10">
             <div className="flex items-center gap-2">
-              <span className="rounded-lg p-2 bg-[#152316] ring-1 ring-[#2d4a25]/60">
-                <Image
-                  src="/bugscope.svg"
-                  alt="BugScope Logo"
-                  width={120}
-                  height={40}
-                  className="h-10 w-auto object-contain"
-                  priority
-                />
-              </span>
+              <Image
+                src="/bugscope.svg"
+                alt="BugScope Logo"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+              />
               <span className="text-xl font-semibold text-white tracking-tight">BugScope</span>
             </div>
             <div className="flex items-center gap-3">
@@ -506,30 +677,50 @@ export default function DashboardPage() {
             </div>
           </div>
         </header>
-        <main className="w-full mx-auto py-12 px-10 space-y-10 relative z-10">
+  <main className="w-full mx-auto py-10 px-4 sm:px-6 md:px-10 space-y-10 relative z-10">
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
               <h1 className="text-3xl font-semibold text-white mb-1 tracking-tight">Security Testing Dashboard</h1>
               <p className="text-zinc-400 text-sm font-medium tracking-tight">Track, manage, and document your security checks with ease.</p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => loadChecklist(selectedScope)}
-                className="relative bg-gradient-to-r from-[#8bd46a] to-[#2db08d] text-white rounded-full px-5 py-2 text-sm font-semibold shadow-md border-0"
-                disabled={loadingChecklist}
-                aria-label="Refresh the checklist"
-              >
-                {loadingChecklist ? (
-                  <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-[#2db08d] rounded-full" />
-                ) : (
-                  <Activity className="mr-2 h-4 w-4" />
-                )}
-                Refresh
-              </Button>
+            <div className="flex items-center gap-2">
+              {/* Mobile: scope selector dropdown (visible only on xs) */}
+              <div className="relative sm:hidden -ml-2">
+                <label className="sr-only" htmlFor="mobile-scope-select">Select scope</label>
+                <select
+                  id="mobile-scope-select"
+                  value={selectedScope}
+                  onChange={(e) => setSelectedScope(e.target.value)}
+                  className="block appearance-none bg-[#0b1015] border border-[#1f2d20] text-white rounded-full px-4 pr-10 py-2 text-sm font-semibold w-44"
+                  aria-label="Choose checklist scope"
+                >
+                  {SCOPES.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400" />
+              </div>
+
+              {/* Desktop refresh button - hidden on small screens to avoid the green full-width pill */}
+              <div className="hidden sm:flex">
+                <Button
+                  variant="outline"
+                  onClick={() => loadChecklist(selectedScope)}
+                  className="relative bg-gradient-to-r from-[#8bd46a] to-[#2db08d] text-white rounded-full px-4 py-2 text-sm font-semibold shadow-md border-0"
+                  disabled={loadingChecklist}
+                  aria-label="Refresh the checklist"
+                >
+                  {loadingChecklist ? (
+                    <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-[#2db08d] rounded-full" />
+                  ) : (
+                    <Activity className="mr-2 h-4 w-4" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
             </div>
           </section>
-          <section className="flex gap-3 flex-wrap">
+          <section className="hidden sm:flex gap-3 flex-wrap">
             {SCOPES.map((scope) => {
               const Icon = scope.icon;
               const isSelected = selectedScope === scope.id;
@@ -538,7 +729,7 @@ export default function DashboardPage() {
                   key={scope.id}
                   variant="outline"
                   onClick={() => setSelectedScope(scope.id)}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition shadow-sm overflow-hidden
+                  className={`w-full sm:w-auto relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full border text-sm font-semibold transition shadow-sm overflow-hidden
                     ${isSelected
                       ? 'bg-gradient-to-r from-[#8bd46a] to-[#2db08d] text-white border-0 ring-1 ring-[#2d4a25]/60'
                       : 'bg-[#0b1015] border-[#1f2d20] text-zinc-400 hover:bg-[#0f1711] hover:text-white hover:border-[#2d4a25]/60'}
@@ -552,7 +743,7 @@ export default function DashboardPage() {
               );
             })}
           </section>
-          <section className="grid gap-6 md:grid-cols-4">
+            <section className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
             {[
               { label: 'Total Checks', value: total, icon: <Activity className="h-6 w-6 text-white" /> },
               { label: 'Completed', value: done, icon: <CheckCircle2 className="h-6 w-6 text-white" /> },
@@ -596,26 +787,78 @@ export default function DashboardPage() {
                       {selectedScopeData && <selectedScopeData.icon className="h-5 w-5 text-[#87cf5f]" />}
                       {selectedScopeData?.name} Security Checklist
                     </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleAll}
-                      className="text-[#87cf5f] hover:text-[#2db08d] hover:bg-[#152316] text-sm"
-                      aria-label={allExpanded ? 'Collapse all categories' : 'Expand all categories'}
-                    >
-                      {allExpanded ? (
-                        <>
-                          <ChevronsUp className="h-4 w-4 mr-1" />
-                          Collapse All
-                        </>
-                      ) : (
-                        <>
-                          <ChevronsDown className="h-4 w-4 mr-1" />
-                          Expand All
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {/* Toggle always visible */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleAll}
+                        className="text-[#87cf5f] hover:text-[#2db08d] hover:bg-[#152316] text-sm"
+                        aria-label={allExpanded ? 'Collapse all categories' : 'Expand all categories'}
+                      >
+                        {allExpanded ? (
+                          <>
+                            <ChevronsUp className="h-4 w-4 mr-1" />
+                            Collapse All
+                          </>
+                        ) : (
+                          <>
+                            <ChevronsDown className="h-4 w-4 mr-1" />
+                            Expand All
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Desktop: small rounded bulk buttons next to toggle */}
+                      <div className="hidden sm:flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => bulkUpdate('checkAll')}
+                          disabled={!checklist}
+                          className="w-auto relative flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold bg-[#0b1015] border-[#1f2d20] text-white/90 hover:bg-[#1a2a18] hover:border-[#3a5e32] hover:text-[#b6f09c]"
+                        >
+                          Check All
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => bulkUpdate('clearAll')}
+                          disabled={!checklist}
+                          className="w-auto relative flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold bg-[#0b1015] border-[#1f2d20] text-white/90 hover:bg-[#1a2a18] hover:border-[#3a5e32] hover:text-[#b6f09c]"
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                    </div>
                   </div>
+                  {/* Controls row (mobile-first): collapse + bulk buttons */}
+                  <div className="flex items-center gap-3 mt-3">
+                    {/* Mobile: side-by-side bulk buttons under title, full width */}
+                    <div className="sm:hidden flex gap-2 w-full">
+                      <Button
+                        onClick={() => bulkUpdate('checkAll')}
+                        disabled={!checklist}
+                        size="sm"
+                        className="flex-1 group h-11 min-h-[44px] px-3 rounded-full border border-[#1f2d20] bg-[#0b1015] text-white/90 text-sm font-semibold shadow-md transition-all hover:bg-[#1a2a18] hover:border-[#3a5e32] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
+                        aria-label="Check all items"
+                      >
+                        Check All
+                      </Button>
+                      <Button
+                        onClick={() => bulkUpdate('clearAll')}
+                        disabled={!checklist}
+                        size="sm"
+                        className="flex-1 group h-11 min-h-[44px] px-3 rounded-full border border-[#1f2d20] bg-[#0b1015] text-white/90 text-sm font-semibold shadow-md transition-all hover:bg-[#1a2a18] hover:border-[#3a5e32] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
+                        aria-label="Clear all items"
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+
+                    
+                  </div>
+
                   {checklist && (
                     <div className="flex items-center gap-4 mt-4">
                       <div className="flex-1 relative">
@@ -636,6 +879,7 @@ export default function DashboardPage() {
                       >
                         {done}/{total} completed
                       </Badge>
+                      {/* (Bulk buttons are shown in the header controls row above on mobile and desktop) */}
                       {progressPct === 100 && (
                         <motion.span initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-[#2db08d] text-sm font-medium flex items-center gap-1">
                           <CheckCircle2 className="h-4 w-4" /> Complete!
@@ -691,20 +935,20 @@ export default function DashboardPage() {
                                         key={`${cat.name}-${item.text}`}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className={`rounded-xl border px-5 py-4 flex gap-4 items-center relative
+                                        className={`rounded-xl border px-4 py-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center relative
                                           ${item.checked ? 'bg-gradient-to-r from-[#8bd46a]/20 to-[#2db08d]/10 border-[#2db08d]' : 'bg-[#0b1015] border-[#1f2d20]'}
                                           before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-2/3 before:h-[1px] before:bg-gradient-to-r before:from-[#8bd46a] before:to-[#2db08d] before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300
                                         `}
                                         aria-label={`Toggle ${item.text} checklist item`}
                                       >
                                         <span
-                                          className={`w-6 h-6 flex items-center justify-center rounded-md border ${item.checked ? 'bg-[#2db08d] border-[#87cf5f] text-white' : 'bg-[#0b1015] border-[#2d4a25]'} cursor-pointer`}
+                                          className={`w-10 h-10 sm:w-6 sm:h-6 flex items-center justify-center rounded-md border ${item.checked ? 'bg-[#2db08d] border-[#87cf5f] text-white' : 'bg-[#0b1015] border-[#2d4a25]'} cursor-pointer touch-manipulation`}
                                           role="checkbox"
                                           aria-checked={item.checked}
                                           tabIndex={0}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            patchItem(checklist.scope, cat.name, item.text, {
+                                            schedulePatch(checklist.scope, cat.name, item.text, {
                                               checked: !item.checked,
                                               note: item.note,
                                             });
@@ -713,7 +957,7 @@ export default function DashboardPage() {
                                             if (e.key === ' ' || e.key === 'Enter') {
                                               e.preventDefault();
                                               e.stopPropagation();
-                                              patchItem(checklist.scope, cat.name, item.text, {
+                                              schedulePatch(checklist.scope, cat.name, item.text, {
                                                 checked: !item.checked,
                                                 note: item.note,
                                               });
@@ -743,7 +987,7 @@ export default function DashboardPage() {
                                             defaultValue={item.note}
                                             onBlur={(e) =>
                                               e.currentTarget.value !== item.note &&
-                                              patchItem(checklist.scope, cat.name, item.text, {
+                                              schedulePatch(checklist.scope, cat.name, item.text, {
                                                 note: e.currentTarget.value,
                                                 checked: item.checked,
                                               })
@@ -762,12 +1006,18 @@ export default function DashboardPage() {
                           );
                         })}
                       </AnimatePresence>
+                      <div className="flex gap-3 mt-4">
+                        <div className="ml-auto flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={exportTXT} disabled={!checklist}>Export TXT</Button>
+                          <Button variant="ghost" size="sm" onClick={exportMarkdown} disabled={!checklist}>Export MD</Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </div>
-            <aside className="w-full lg:w-[480px] flex flex-col gap-6">
+            <aside className="w-full lg:w-[480px] flex flex-col gap-6 order-first lg:order-none">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -779,12 +1029,31 @@ export default function DashboardPage() {
                     <Lightbulb className="h-5 w-5 text-[#87cf5f]" />
                     AI Suggestions {aiVersion && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-[#152316] border border-[#1f2d20] text-[#2db08d]">{aiVersion}</span>}
                   </CardTitle>
-                  <div className="absolute top-6 right-6">
+                  <div className="absolute top-6 right-6 hidden sm:block">
                     <Button
                       onClick={fetchSuggestions}
                       disabled={!checklist || suggestLoading}
                       size="sm"
                       className="group h-9 px-4 rounded-full border border-[#1f2d20] bg-[#0b1015] text-white/90 text-sm font-semibold shadow-md transition-all hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
+                      aria-label="Fetch AI suggestions"
+                    >
+                      {suggestLoading ? (
+                        <span className="animate-spin mr-2 h-4 w-4 border-2 border-white/80 border-t-[#2db08d] rounded-full" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4 text-zinc-400 transition-colors group-hover:text-[#2db08d]" />
+                      )}
+                      <span className="transition-colors group-hover:text-[#b6f09c]">
+                        {suggestLoading ? 'Analyzing…' : 'Get Ideas'}
+                      </span>
+                    </Button>
+                  </div>
+                  {/* Mobile CTAs: full width button */}
+                  <div className="sm:hidden mt-4">
+                    <Button
+                      onClick={fetchSuggestions}
+                      disabled={!checklist || suggestLoading}
+                      size="sm"
+                      className="w-full group h-10 px-4 rounded-full border border-[#1f2d20] bg-[#0b1015] text-white/90 text-sm font-semibold shadow-md transition-all hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f]"
                       aria-label="Fetch AI suggestions"
                     >
                       {suggestLoading ? (
@@ -929,8 +1198,7 @@ export default function DashboardPage() {
                   <div className="grid gap-2">
                     {[
                       { format: 'Markdown', handler: exportMarkdown },
-                      { format: 'CSV', handler: exportCSV },
-                      { format: 'JSON', handler: exportJSON },
+                      { format: 'TXT', handler: exportTXT },
                       { format: 'PDF', handler: exportPDF },
                     ].map(({ format, handler }) => (
                       <Button

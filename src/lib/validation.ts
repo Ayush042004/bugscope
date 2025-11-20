@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import sanitize from 'mongo-sanitize';
+import { isAllowedEmail } from '@/lib/email';
 
-// Helper to sanitize & trim strings while preserving string type for Zod inference
-const sanString = (val: string): string => {
-  return sanitize(val.trim()) as string;
+// Helper to sanitize & trim strings
+const sanString = (val: unknown) => {
+  if (typeof val !== 'string') return val;
+  return sanitize(val.trim());
 };
 
 export const SignUpSchema = z.object({
@@ -15,7 +17,8 @@ export const SignUpSchema = z.object({
   email: z.string()
     .email('Invalid email address')
     .max(128, 'Email too long')
-    .transform(sanString),
+    .transform(sanString)
+    .refine((val) => isAllowedEmail(String(val)), { message: 'Email domain not allowed' }),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password too long')
@@ -34,7 +37,7 @@ export const ChecklistUpdateSchema = z.object({
   categoryName: z.string().min(1).max(128).transform(sanString),
   itemText: z.string().min(1).max(512).transform(sanString),
   checked: z.boolean(),
-  note: z.string().max(2000).optional().transform(val => (typeof val === 'string' ? sanString(val) : val))
+  note: z.string().max(2000).optional().transform(val => sanString(val))
 });
 
 export const ScopeParamSchema = z.object({

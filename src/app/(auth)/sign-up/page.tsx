@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
-import { SignUpSchema } from '@/lib/validation';
+import { signUpSchema } from '@/schemas/signUpSchema';
 import axios, { AxiosError } from "axios";
 import { ApiResponse } from '@/types/ApiResponse';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,25 +17,38 @@ import { motion } from 'framer-motion';
 import Spotlight from "@/components/fx/Spotlight";
 import { GridBackground } from "@/components/fx/GridBackground";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import Image from "next/image";
+import { Shield, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import Image from 'next/image';
 
 function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof SignUpSchema>>({
-    resolver: zodResolver(SignUpSchema),
+  const form = useForm<z.infer<typeof signUpSchema>>({
+    resolver: zodResolver(signUpSchema),
     defaultValues: { username: "", email: "", password: "" }
   });
 
-  const onSubmit = async (data: z.infer<typeof SignUpSchema>) => {
+  const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
     setIsSubmitting(true);
     try {
       const response = await axios.post<ApiResponse>('/api/sign-up', data);
       toast.success(response.data.message);
-      router.replace('/dashboard');
+      // Auto sign-in after successful signup using the provided credentials
+      const result = await signIn('credentials', {
+        redirect: false,
+        identifier: data.email, // prefer email to avoid username collisions
+        password: data.password,
+      });
+      if (result?.error) {
+        // Fallback: navigate to sign-in page with a hint
+        toast('Account created. Please sign in to continue.', { icon: 'ℹ️' });
+        router.replace('/sign-in');
+      } else {
+        router.replace('/dashboard');
+      }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       const errorMessage = axiosError.response?.data.message;
@@ -65,41 +78,22 @@ function SignUpPage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,.6)] px-6 sm:px-8 py-6">
-            <CardHeader className="text-center pb-4 px-0">
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.15, type: "spring" }}
-                className="flex justify-center mb-3"
-              >
-                <Link href="/" className="group flex flex-col items-center">
-                  <div className="relative">
-                    <div
-                      aria-hidden
-                      className="absolute -inset-4 rounded-full bg-gradient-to-r from-lime-400/25 via-teal-500/20 to-cyan-500/25 blur-2xl opacity-70 group-hover:opacity-90 transition-opacity"
-                    />
-                    <Image
-                      src="/bugscope.svg"
-                      alt="BugScope"
-                      width={96}
-                      height={96}
-                      priority
-                      className="relative h-20 w-20 md:h-24 md:w-24 transition-transform duration-300 group-hover:scale-105"
-                      style={{ color: "transparent" }}
-                    />
-                  </div>
-                </Link>
+          <Card className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,.6)]">
+            <CardHeader className="text-center pb-8">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="flex justify-center mb-4">
+                <div className="p-4 bg-[#152316] rounded-2xl shadow-lg ring-1 ring-[#2d4a25]/60">
+                  <Shield className="h-8 w-8 text-[#87cf5f]" />
+                </div>
               </motion.div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent mb-1">
+              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#b6f09c] to-[#86db6d] bg-clip-text text-transparent">
                 Join BugScope
               </CardTitle>
-              <p className="text-gray-400 text-sm">Sign up to start your journey with BugScope</p>
+              <p className="text-gray-400 mt-2">Sign up to start your journey with BugScope</p>
             </CardHeader>
 
-            <CardContent className="pt-0 px-0">
+            <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
                     name="username"
@@ -186,6 +180,27 @@ function SignUpPage() {
                   </motion.div>
                 </form>
               </Form>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-black px-4 text-gray-400">or</span>
+                </div>
+              </div>
+
+              {/* Continue with Google */}
+              <Button
+                variant="outline"
+                className="group w-full h-12 justify-center rounded-xl border border-[#1f2d20] bg-[#0b1015] text-white/90 text-sm font-medium transition-all hover:bg-[#152316] hover:border-[#2d4a25] hover:text-[#b6f09c] focus-visible:ring-1 focus-visible:ring-[#87cf5f] shadow-md"
+                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                type="button"
+              >
+                <Image src="/google.svg" alt="Google" width={20} height={20} className="mr-3" />
+                <span className="transition-colors group-hover:text-[#b6f09c]">Continue with Google</span>
+              </Button>
 
               <div className="mt-6 text-center">
                 <p className="text-gray-400 text-sm">
